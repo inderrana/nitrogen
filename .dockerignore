@@ -1,0 +1,24 @@
+# Git and version control
+.git
+.gitignore
+
+# Editor configs
+.vscode
+
+# Node modules (will be installed in container)
+node_modules
+
+# Documentation
+*.md
+README.md
+SECURITY-REVIEW.md
+
+# Scripts (not needed in container)
+*.bat
+docker-compose.yml
+Dockerfile
+.dockerignore
+
+# Temporary files
+*.log
+*.tmp

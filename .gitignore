@@ -1,0 +1,60 @@
+# Node modules
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment variables (if any)
+.env
+.env.local
+.env.*.local
+
+# SSL Certificates and Keys (SECURITY: Never commit private keys!)
+ssl/key.pem
+ssl/cert.pem
+ssl/ca/ca-key.pem
+ssl/ca/ca-cert.srl
+ssl/ca/ca-cert.pem
+
+# Keep only config files, not the actual certificates
+!ssl/*.cnf
+!ssl/ca/*.cnf
+!.gitignore
+
+# Other untracked files
+*.db
+*.sqlite
+backup/
+exports/
+
+
+# IDE and Editor files
+.vscode/*
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Personal notes and drafts
+notes/
+drafts/
+TODO.md
+PERSONAL-*.md
+
+# Security audit and review documents (keep out of public repos)
+SECURITY-AUDIT-REPORT.md
+SECURITY-REVIEW.md
+*SECURITY*.md
+security-audit/
+security-reports/
+
+# Test files with sensitive data
+*test-data*.json
+*dummy-data*.json
+Untitled-*.json

@@ -1,0 +1,29 @@
+services:
+  nitrogen-server:
+    image: nitrogen-server
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nitrogen-server
+    ports:
+      - "3443:3443"
+    volumes:
+      # Mount SSL certificates (read-only)
+      - ./ssl:/app/ssl:ro
+      # Optional: Mount app directory for live updates during development
+      # - ./app:/app/app:ro
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+    networks:
+      - nitrogen-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "const https = require('https'); const options = { rejectUnauthorized: false }; https.get('https://localhost:3443', options, (res) => { process.exit(res.statusCode === 200 ? 0 : 1); }).on('error', () => process.exit(1));"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+networks:
+  nitrogen-network:
+    driver: bridge

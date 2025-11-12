@@ -1,0 +1,12 @@
+{
+  "name": "n2-server",
+  "version": "1.0.0",
+  "description": "Encrypted Local Profile Manager",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "node-windows": "^1.0.0-beta.8"
+  }
+}

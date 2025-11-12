@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Nitrogen</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="stylesheet" href="style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.1/css/all.min.css" rel="stylesheet" integrity="sha512-5Hs3dF2AEPkpNAR7UiOHba+lRSJNeM2ECkwxUIxC1Q/FLycGTbNapWXB4tP889k5T5Ju8fs4b1P5z/iB4nMfSQ==" crossorigin="anonymous">
+    <script src="crypto-utils.js"></script>
+    <script src="user-profile.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- User Profile Dropdown -->
+        <div class="top-controls">
+            <div class="profile-dropdown">
+                <button id="profileBtn" class="profile-btn" title="User Profile">
+                    <i class="fas fa-user"></i>
+                    <span id="profileIndicator" class="profile-indicator offline"></span>
+                </button>
+                <div class="profile-dropdown-menu" id="profileDropdown">
+                    <div class="dropdown-item" id="profileMenuBtn">
+                        <i class="fas fa-cog"></i>
+                        <span>Settings</span>
+                    </div>
+                    <div class="dropdown-divider"></div>
+                    <div class="dropdown-item" id="refreshBtn">
+                        <i class="fas fa-sync-alt"></i>
+                        <span>Refresh Data</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Time and Date Display -->
+        <div class="time-section">
+            <div class="time" id="currentTime">12:00</div>
+            <div class="date" id="currentDate">Friday, October 24</div>
+            <div class="greeting editable" contenteditable="false" data-placeholder="Enter your greeting" id="greeting">Good afternoon!</div>
+        </div>
+
+        <!-- Search Section -->
+        <div class="search-section">
+            <div class="search-container">
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="Search Startpage" autofocus autocomplete="off">
+                </div>
+                <div class="search-engine-tabs">
+                    <button class="search-tab active" data-engine="startpage">
+                        <i class="fas fa-shield-alt"></i>
+                        <span>Startpage</span>
+                    </button>
+                    <button class="search-tab" data-engine="youtube">
+                        <i class="fab fa-youtube"></i>
+                        <span>YouTube</span>
+                    </button>
+                    <button class="search-tab" data-engine="duckduckgo">
+                        <i class="fas fa-search"></i>
+                        <span>DuckDuckGo</span>
+                    </button>
+                    <button class="search-tab" data-engine="google">
+                        <i class="fab fa-google"></i>
+                        <span>Google</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Links Section -->
+        <div class="quick-links">
+            <h3 class="links-title editable" contenteditable="false" data-placeholder="Quick Links">Quick Links</h3>
+            <div class="links-grid" id="linksGrid">
+                <div class="link-item">
+                    <a href="https://gmail.com" target="_blank" class="link-card">
+                        <i class="fas fa-envelope link-icon"></i>
+                        <span class="link-name editable" contenteditable="false" data-placeholder="Link Name">Gmail</span>
+                    </a>
+                    <button class="remove-btn" style="display: none;">×</button>
+                </div>
+                <div class="link-item">
+                    <a href="https://outlook.live.com" target="_blank" class="link-card">
+                        <i class="fas fa-mail-bulk link-icon"></i>
+                        <span class="link-name editable" contenteditable="false" data-placeholder="Link Name">Hotmail</span>
+                    </a>
+                    <button class="remove-btn" style="display: none;">×</button>
+                </div>
+                <div class="link-item">
+                    <a href="https://linkedin.com" target="_blank" class="link-card">
+                        <i class="fab fa-linkedin link-icon"></i>
+                        <span class="link-name editable" contenteditable="false" data-placeholder="Link Name">LinkedIn</span>
+                    </a>
+                    <button class="remove-btn" style="display: none;">×</button>
+                </div>
+                <div class="link-item">
+                    <a href="https://github.com" target="_blank" class="link-card">
+                        <i class="fab fa-github link-icon"></i>
+                        <span class="link-name editable" contenteditable="false" data-placeholder="Link Name">GitHub</span>
+                    </a>
+                    <button class="remove-btn" style="display: none;">×</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Save Notification -->
+        <div class="save-notification" id="saveNotification">
+            <i class="fas fa-check"></i> Changes saved!
+        </div>
+    </div>
+
+    <!-- 
+    ============================================
+    DRAGGABLE WIDGETS
+    ============================================
+    To make any widget draggable:
+    1. Add classes: "draggable-widget" to the outer container
+    2. Add attribute: data-widget="unique-id" (use lowercase, no spaces)
+    3. Add class: "widget-drag-handle" to the element that should be draggable (header, title bar, etc.)
+    4. Add icon: <i class="fas fa-grip-vertical drag-icon"></i> in the drag handle area
+    
+    Example:
+    <div class="my-widget draggable-widget" data-widget="mywidget">
+        <div class="widget-header widget-drag-handle">
+            <i class="fas fa-grip-vertical drag-icon"></i>
+            <h4>Widget Title</h4>
+        </div>
+        <div class="widget-content">...</div>
+    </div>
+    
+    The position will automatically save to user profile and localStorage.
+    ============================================
+    -->
+
+    <!-- Weather Widget -->
+    <div class="weather-widget draggable-widget" data-widget="weather">
+        <div class="weather-info widget-drag-handle" id="weatherInfo">
+            <i class="fas fa-grip-vertical drag-icon"></i>
+            <div class="weather-icon" id="weatherIcon">
+                <i class="fas fa-cloud"></i>
+            </div>
+            <div class="weather-temp" id="weatherTemp">--°</div>
+            <div class="weather-desc" id="weatherDesc">--</div>
+            <div class="weather-location editable" contenteditable="false" data-placeholder="Your City" id="weatherLocation">Loading...</div>
+        </div>
+    </div>
+
+    <!-- Reminder Widget -->
+    <div class="reminder-widget draggable-widget" id="reminderWidget" data-widget="reminders">
+        <div class="reminder-header widget-drag-handle">
+            <i class="fas fa-grip-vertical drag-icon"></i>
+            <h4><i class="fas fa-sticky-note"></i> Reminders</h4>
+            <button class="reminder-add-btn" id="addReminderBtn" title="Add Reminder">
+                <i class="fas fa-plus"></i>
+            </button>
+        </div>
+        <div class="reminder-list" id="reminderList">
+            <div class="no-reminders" id="noReminders">No reminders yet</div>
+        </div>
+    </div>
+
+    <!-- Add Reminder Modal -->
+    <div class="reminder-modal" id="reminderModal">
+        <div class="reminder-modal-content">
+            <div class="reminder-modal-header">
+                <h3><i class="fas fa-plus"></i> Add Reminder</h3>
+                <button class="reminder-close-btn" id="closeReminderModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="reminder-modal-body">
+                <div class="reminder-input-group">
+                    <label>Reminder Text</label>
+                    <input type="text" id="reminderText" placeholder="Enter your reminder..." class="reminder-input">
+                </div>
+                <div class="reminder-input-group">
+                    <label>Priority</label>
+                    <select id="reminderPriority" class="reminder-select">
+                        <option value="low">Low</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="high">High</option>
+                    </select>
+                </div>
+                <div class="reminder-input-group">
+                    <label>Due Date (Optional)</label>
+                    <input type="datetime-local" id="reminderDate" class="reminder-input">
+                </div>
+            </div>
+            <div class="reminder-modal-footer">
+                <button class="reminder-btn secondary" id="cancelReminder">Cancel</button>
+                <button class="reminder-btn primary" id="saveReminder">Save Reminder</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Profile Panel (Side Panel like Edit) -->
+    <div class="profile-panel" id="profilePanel">
+        <div class="profile-panel-header">
+            <h3 id="profilePanelTitle"><i class="fas fa-cog"></i> Settings</h3>
+            <button class="profile-close-btn" id="closeProfilePanel">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <!-- Tab Navigation -->
+        <div class="profile-tabs">
+            <button class="profile-tab active" data-tab="profile">
+                <i class="fas fa-user"></i>
+                <span>Account</span>
+            </button>
+            <button class="profile-tab" data-tab="settings">
+                <i class="fas fa-sync-alt"></i>
+                <span>Sync</span>
+            </button>
+            <button class="profile-tab" data-tab="customize">
+                <i class="fas fa-palette"></i>
+                <span>Customize</span>
+            </button>
+        </div>
+        
+        <div class="profile-panel-content">
+            
+            <!-- Profile Tab Content -->
+            <div class="profile-tab-content active" data-content="profile">
+            
+            <!-- Login/Register Form -->
+            <div class="profile-auth-form" id="authForm">
+                <div class="auth-tabs">
+                    <button class="auth-tab active" id="loginTab">Login</button>
+                    <button class="auth-tab" id="registerTab">Sign Up</button>
+                </div>
+                
+                <!-- Login Form -->
+                <div class="auth-content active" id="loginForm">
+                    <div class="profile-input-group">
+                        <label>Username</label>
+                        <input type="text" id="loginUsername" placeholder="Enter your username" class="profile-input" autocomplete="username">
+                    </div>
+                    <div class="profile-input-group">
+                        <label>Password</label>
+                        <input type="password" id="loginPassword" placeholder="Enter your password" class="profile-input" autocomplete="current-password">
+                    </div>
+                    <div class="profile-checkbox-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="rememberMe" checked>
+                            <span class="checkmark"></span>
+                            Remember me
+                        </label>
+                    </div>
+                    <div class="auth-actions">
+                        <button class="profile-btn primary" id="loginBtn">Login</button>
+                        <button class="profile-btn secondary" id="importAccountBtn">
+                            <i class="fas fa-file-import"></i> Import Account
+                        </button>
+                    </div>
+                    <div class="auth-footer">
+                        <small style="color: rgba(255,255,255,0.6); display: block; margin-top: 0.75rem;">
+                            Having trouble logging in? <a href="#" id="clearAccountLink" style="color: #4a90e2; text-decoration: none;">Clear account data</a>
+                        </small>
+                    </div>
+                </div>
+                
+                <!-- Register Form -->
+                <div class="auth-content" id="registerForm">
+                    <div class="profile-input-group">
+                        <label>Username</label>
+                        <input type="text" id="registerUsername" placeholder="Choose a username" class="profile-input" autocomplete="username">
+                        <small>At least 3 characters</small>
+                    </div>
+                    <div class="profile-input-group">
+                        <label>Email</label>
+                        <input type="email" id="registerEmail" placeholder="Enter your email" class="profile-input" autocomplete="email">
+                    </div>
+                    <div class="profile-input-group">
+                        <label>Display Name</label>
+                        <input type="text" id="registerDisplayName" placeholder="Your display name" class="profile-input" autocomplete="name">
+                    </div>
+                    <div class="profile-input-group">
+                        <label>Password</label>
+                        <input type="password" id="registerPassword" placeholder="Choose a secure password" class="profile-input" autocomplete="new-password">
+                        <small>At least 8 characters</small>
+                    </div>
+                    <div class="profile-input-group">
+                        <label>Confirm Password</label>
+                        <input type="password" id="confirmPassword" placeholder="Confirm your password" class="profile-input" autocomplete="new-password">
+                    </div>
+                    <div class="auth-actions">
+                        <button class="profile-btn primary" id="registerBtn">Sign Up</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- User Profile Display -->
+            <div class="profile-display" id="profileDisplay" style="display: none;">
+                <div class="profile-avatar-section">
+                    <div class="avatar-upload-wrapper">
+                        <img id="userAvatar" class="profile-avatar" alt="User Avatar">
+                        <button class="avatar-change-btn" id="changeAvatarBtn" title="Change Avatar">
+                            <i class="fas fa-camera"></i>
+                        </button>
+                        <input type="file" id="avatarInput" accept="image/*" style="display: none;">
+                    </div>
+                    <div class="profile-info">
+                        <h4 id="userDisplayName">Display Name</h4>
+                        <p id="userUsername">@username</p>
+                        <p id="userEmail">email@example.com</p>
+                    </div>
+                </div>
+                
+                <div class="profile-settings" style="margin-top: 1rem;">
+                    <h5>
+                        <i class="fas fa-user-edit"></i> Update Profile
+                        <button class="cancel-edit-btn" id="cancelEditBtn" style="display: none; float: right; font-size: 0.875rem; padding: 0.25rem 0.75rem;">
+                            Cancel
+                        </button>
+                    </h5>
+                    
+                    <div class="profile-input-group">
+                        <label>Display Name</label>
+                        <input type="text" id="updateDisplayName" class="profile-input" readonly>
+                    </div>
+                    
+                    <div class="profile-input-group">
+                        <label>Email</label>
+                        <input type="email" id="updateEmail" class="profile-input" readonly>
+                    </div>
+                    
+                    <div class="profile-input-group" id="updatePasswordGroup" style="display: none;">
+                        <label>Current Password (required to save changes)</label>
+                        <input type="password" id="updatePassword" class="profile-input" placeholder="Enter your password">
+                    </div>
+                    
+                    <button class="profile-btn primary full-width" id="updateProfileBtn" style="display: none;">
+                        <i class="fas fa-save"></i> Save Changes
+                    </button>
+                </div>
+                
+                <div class="profile-actions">
+                    <div class="button-group">
+                        <button class="profile-btn secondary" id="exportDataBtn">
+                            <i class="fas fa-download"></i> Export Account
+                        </button>
+                        <button class="profile-btn secondary" id="importDataBtn">
+                            <i class="fas fa-upload"></i> Import Data
+                        </button>
+                    </div>
+                    <button class="profile-btn danger" id="logoutBtn">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </button>
+                    <button class="profile-btn secondary full-width" id="editProfileBtn" style="margin-top: 1rem;">
+                        <i class="fas fa-pencil-alt"></i> Edit Profile
+                    </button>
+                </div>
+            </div>
+            
+            <div class="auth-message" id="authMessage" style="display: none;"></div>
+            </div>
+            <!-- End Profile Tab Content -->
+            
+            <!-- Settings Tab Content -->
+            <div class="profile-tab-content" data-content="settings">
+                <div class="profile-settings">
+                    <h5><i class="fas fa-sync-alt"></i> Sync Settings</h5>
+                    
+                    <div class="setting-item">
+                        <label class="toggle-label">
+                            <span>Auto Sync</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="autoSyncToggle">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </label>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <label>Sync Interval</label>
+                        <select id="syncInterval" class="profile-select">
+                            <option value="60000">1 minute</option>
+                            <option value="300000">5 minutes</option>
+                            <option value="600000">10 minutes</option>
+                            <option value="1800000">30 minutes</option>
+                        </select>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <label>Storage Mode</label>
+                        <select id="storageMode" class="profile-select">
+                            <option value="browser">Browser Default</option>
+                            <option value="session">Session Only</option>
+                            <option value="local">Local Storage</option>
+                            <option value="cookie">Cookies Only</option>
+                        </select>
+                    </div>
+                    
+                    <div class="sync-info-section">
+                        <div class="info-row">
+                            <i class="fas fa-clock"></i>
+                            <span>Last Sync</span>
+                            <span id="lastSyncTime" class="info-value">Never</span>
+                        </div>
+                        <div class="info-row">
+                            <i class="fas fa-folder"></i>
+                            <span>Storage</span>
+                            <span id="currentStoragePath" class="info-value">Browser Default</span>
+                        </div>
+                        <div class="info-row">
+                            <i class="fas fa-database"></i>
+                            <span>Data Size</span>
+                            <span id="dataSize" class="info-value">Calculating...</span>
+                        </div>
+                        <div class="info-row">
+                            <i class="fas fa-hdd"></i>
+                            <span>Storage Path</span>
+                            <span id="storagePath" class="info-value">localStorage (browser)</span>
+                        </div>
+                    </div>
+                    
+                    <button class="profile-btn secondary full-width" id="manualSyncBtn">
+                        <i class="fas fa-sync-alt"></i> Sync Now
+                    </button>
+                </div>
+            </div>
+            <!-- End Settings Tab Content -->
+            
+            <!-- Customize Tab Content -->
+            <div class="profile-tab-content" data-content="customize">
+                <div class="profile-settings">
+                    <h5><i class="fas fa-palette"></i> Appearance</h5>
+                    
+                    <div class="setting-item">
+                        <label>Theme</label>
+                        <select class="profile-select" id="customizeThemeSelect">
+                            <option value="ocean">Ocean Blue</option>
+                            <option value="sunset">Sunset Orange</option>
+                            <option value="forest">Forest Green</option>
+                            <option value="purple">Purple Dreams</option>
+                            <option value="rose">Rose Gold</option>
+                            <option value="dark">Dark Mode</option>
+                            <option value="midnight">Midnight Black</option>
+                            <option value="charcoal">Charcoal Grey</option>
+                            <option value="navy">Navy Deep</option>
+                            <option value="steel">Steel Blue</option>
+                            <option value="cobalt">Cobalt Blue</option>
+                            <option value="arctic">Arctic White</option>
+                            <option value="weather">Weather Dynamic</option>
+                            <option value="weather-dark">Weather Dynamic (Dark)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <label class="toggle-label">
+                            <span>Weather Effects</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="customizeWeatherEffectsToggle">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </label>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <label class="toggle-label">
+                            <span>Weather Elements</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="customizeWeatherCloudsToggle">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="profile-settings">
+                    <h5><i class="fas fa-cloud-sun"></i> Weather</h5>
+                    
+                    <div class="setting-item">
+                        <label>Location</label>
+                        <input type="text" id="customizeWeatherLocationInput" class="profile-input" placeholder="Enter city name">
+                        <button class="profile-btn secondary" id="customizeUpdateWeatherBtn" style="margin-top: 0.5rem; width: 100%;">
+                            <i class="fas fa-search"></i> Search Location
+                        </button>
+                        
+                        <!-- City Selection Dropdown -->
+                        <div class="city-dropdown" id="customizeCityDropdown" style="display: none;">
+                            <div class="city-dropdown-header">
+                                <input type="text" id="customizeCitySearchInput" class="city-search-input" placeholder="Search cities...">
+                                <button class="close-city-dropdown" id="customizeCloseCityDropdown">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div class="city-dropdown-list" id="customizeCityDropdownList">
+                                <!-- Cities will be populated here -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <label>Auto-Refresh</label>
+                        <select class="profile-select" id="customizeWeatherRefreshInterval">
+                            <option value="0">Never</option>
+                            <option value="5">5 minutes</option>
+                            <option value="10">10 minutes</option>
+                            <option value="15">15 minutes</option>
+                            <option value="30" selected>30 minutes</option>
+                            <option value="60">1 hour</option>
+                            <option value="custom">Custom...</option>
+                        </select>
+                        <div id="customizeCustomIntervalInput" style="display: none; margin-top: 0.5rem;">
+                            <input type="number" id="customizeCustomIntervalValue" class="profile-input" placeholder="Enter value" min="1" style="width: 100px; display: inline-block;">
+                            <select id="customizeCustomIntervalUnit" class="profile-select" style="width: 100px; display: inline-block; margin-left: 0.5rem;">
+                                <option value="seconds">Seconds</option>
+                                <option value="minutes" selected>Minutes</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="profile-settings">
+                    <h5><i class="fas fa-link"></i> Quick Links</h5>
+                    <button class="profile-btn secondary full-width" id="customizeAddLinkBtn">
+                        <i class="fas fa-plus"></i> Add Link
+                    </button>
+                    <div class="links-manager" id="linksManager" style="margin-top: 1rem;">
+                        <!-- Links will be populated here -->
+                    </div>
+                    <button class="profile-btn primary full-width" id="applyLinkOrderBtn" style="margin-top: 1rem; display: none;">
+                        <i class="fas fa-check"></i> Apply Order
+                    </button>
+                </div>
+            </div>
+            <!-- End Customize Tab Content -->
+            
+        </div>
+    </div>
+
+    <!-- Hidden file input for import -->
+    <input type="file" id="importFileInput" accept=".json" style="display: none;">
+
+    <script src="script.js"></script>
+</body>
+</html>
