@@ -1568,7 +1568,6 @@ class NewTabHomepage {
         // Create new link element
         const newLink = document.createElement('div');
         newLink.className = 'link-item';
-        newLink.draggable = true;
         
         // Create the HTML structure
         const linkCard = document.createElement('a');
@@ -1623,12 +1622,6 @@ class NewTabHomepage {
         removeBtn.addEventListener('click', handleRemove);
         newLink.addEventListener('mouseenter', handleMouseEnter);
         newLink.addEventListener('mouseleave', handleMouseLeave);
-        
-        // Add drag and drop event listeners for reordering
-        newLink.addEventListener('dragstart', (e) => this.handleQuickLinkDragStart(e));
-        newLink.addEventListener('dragover', (e) => this.handleQuickLinkDragOver(e));
-        newLink.addEventListener('drop', (e) => this.handleQuickLinkDrop(e));
-        newLink.addEventListener('dragend', (e) => this.handleQuickLinkDragEnd(e));
         
         return newLink;
     }
@@ -3641,15 +3634,6 @@ class NewTabHomepage {
         const linkItems = Array.from(linksGrid.querySelectorAll('.link-item'));
         if (linkItems.length > 0) {
             linkItems.forEach(item => {
-                // Make existing items draggable
-                item.draggable = true;
-                
-                // Add drag event listeners
-                item.addEventListener('dragstart', (e) => this.handleQuickLinkDragStart(e));
-                item.addEventListener('dragover', (e) => this.handleQuickLinkDragOver(e));
-                item.addEventListener('drop', (e) => this.handleQuickLinkDrop(e));
-                item.addEventListener('dragend', (e) => this.handleQuickLinkDragEnd(e));
-                
                 quicklinksContent.appendChild(item);
             });
             this.log('[QUICKLINKS] Moved', linkItems.length, 'default links to widget');
@@ -3948,63 +3932,6 @@ class NewTabHomepage {
     handleLinkDragEnd(e) {
         e.target.classList.remove('dragging');
         this.draggedLinkIndex = null;
-    }
-
-    // Quick Link Item Drag Handlers (for dragging actual links in the widget)
-    handleQuickLinkDragStart(e) {
-        const linkItem = e.target.closest('.link-item');
-        if (!linkItem) return;
-        
-        linkItem.classList.add('dragging');
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/html', linkItem.innerHTML);
-    }
-
-    handleQuickLinkDragOver(e) {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-        
-        const draggingItem = document.querySelector('.link-item.dragging');
-        const targetItem = e.target.closest('.link-item');
-        
-        if (targetItem && targetItem !== draggingItem && draggingItem) {
-            const quicklinksContent = document.getElementById('quicklinksContent');
-            if (!quicklinksContent) return;
-            
-            const allItems = Array.from(quicklinksContent.querySelectorAll('.link-item'));
-            const draggingIndex = allItems.indexOf(draggingItem);
-            const targetIndex = allItems.indexOf(targetItem);
-            
-            if (draggingIndex !== -1 && targetIndex !== -1) {
-                if (draggingIndex < targetIndex) {
-                    targetItem.parentNode.insertBefore(draggingItem, targetItem.nextSibling);
-                } else {
-                    targetItem.parentNode.insertBefore(draggingItem, targetItem);
-                }
-            }
-        }
-        
-        return false;
-    }
-
-    handleQuickLinkDrop(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        // Save the new order after drop
-        this.saveContent();
-        
-        return false;
-    }
-
-    handleQuickLinkDragEnd(e) {
-        const linkItem = e.target.closest('.link-item');
-        if (linkItem) {
-            linkItem.classList.remove('dragging');
-        }
-        
-        // Save the new order
-        this.saveContent();
     }
 
     applyNewLinkOrder() {
@@ -4897,27 +4824,7 @@ class NewTabHomepage {
 
         try {
             const text = await file.text();
-            
-            // Validate JSON format
-            let importData;
-            try {
-                importData = JSON.parse(text);
-            } catch (parseError) {
-                throw new Error('Invalid JSON file format');
-            }
-            
-            // Validate required fields
-            if (!importData || typeof importData !== 'object') {
-                throw new Error('Invalid file structure');
-            }
-            
-            if (!importData.profile || !importData.version) {
-                throw new Error('Missing required fields (profile or version)');
-            }
-            
-            if (!importData.profile.username || !importData.profile.email) {
-                throw new Error('Missing username or email in profile data');
-            }
+            const importData = JSON.parse(text);
             
             if (importData.profile && importData.version) {
                 if (importType === 'account') {
@@ -4955,30 +4862,12 @@ class NewTabHomepage {
                     this.showSaveNotification('Profile and settings imported successfully');
                     this.closeProfilePanelFn();
                 }
+            } else {
+                throw new Error('Invalid file format');
             }
         } catch (error) {
             console.error('Import error:', error);
-            console.error('Error details:', error.message);
-            
-            let message;
-            if (error.message.includes('JSON')) {
-                message = importType === 'account' 
-                    ? 'Failed to import account: Invalid JSON file' 
-                    : 'Import failed: Invalid JSON file';
-            } else if (error.message.includes('required fields')) {
-                message = importType === 'account'
-                    ? 'Failed to import account: Missing required data'
-                    : 'Import failed: Missing required data';
-            } else if (error.message.includes('username') || error.message.includes('email')) {
-                message = importType === 'account'
-                    ? 'Failed to import account: Invalid profile data'
-                    : 'Import failed: Invalid profile data';
-            } else {
-                message = importType === 'account' 
-                    ? 'Failed to import account: Invalid file' 
-                    : 'Import failed: Invalid file';
-            }
-            
+            const message = importType === 'account' ? 'Failed to import account: Invalid file' : 'Import failed: Invalid file';
             if (importType === 'account') {
                 this.showAuthMessage(message, 'error');
             } else {
@@ -4986,9 +4875,6 @@ class NewTabHomepage {
             }
         }
         
-        // Reset file input to allow re-import of the same file
-        event.target.value = '';
-    }
         // Clear file input and import type
         event.target.value = '';
         delete event.target.dataset.importType;

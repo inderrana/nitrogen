@@ -9,4 +9,3 @@ Dockerfile
 make-custom-cert.bat
 *.md
 public
-server.js
