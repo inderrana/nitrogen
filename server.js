@@ -1,26 +1,25 @@
 const https = require('https');
+const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
 const port = process.env.PORT || 3443;
+const isVercel = process.env.VERCEL || process.env.NOW_REGION;
 
 const mimeTypes = {
     '.html': 'text/html',
     '.css': 'text/css',
     '.js': 'application/javascript',
+    '.json': 'application/json',
     '.png': 'image/png',
     '.jpg': 'image/jpeg',
     '.gif': 'image/gif',
+    '.svg': 'image/svg+xml',
     '.ico': 'image/x-icon'
 };
 
-// SSL options - will use properly generated certificate
-const options = {
-    key: fs.readFileSync('./ssl/key.pem'),
-    cert: fs.readFileSync('./ssl/cert.pem')
-};
-
-const server = https.createServer(options, (req, res) => {
+// Request handler function
+const handleRequest = (req, res) => {
     console.log(`➤ ${req.method} ${req.url}`);
     
     // CORS headers - allow credentials (cookies) to work
@@ -84,34 +83,63 @@ const server = https.createServer(options, (req, res) => {
             res.end(content, 'utf-8');
         }
     });
-});
+};
 
-server.listen(port, '0.0.0.0', () => {
-    console.log('🔒 HTTPS Server Started Successfully!');
-    console.log(`📍 Local: https://localhost:${port}/`);
-    console.log(`🌐 Network: https://YOUR_IP_ADDRESS:${port}/`);
-    console.log('🛡️  Security headers enabled');
-    console.log('📋 Accept the certificate warning in your browser');
-    console.log('💡 To find your IP: run "ipconfig" and look for IPv4 Address');
-    console.log('⏹️  Press Ctrl+C to stop server');
-});
-
-// Graceful shutdown
-process.on('SIGINT', () => {
-    console.log('\n🔴 Server stopped gracefully');
-    server.close();
-    process.exit();
-});
-
-// Error handling
-server.on('error', (err) => {
-    if (err.code === 'ENOENT') {
-        console.log('❌ SSL certificates not found in ssl/ folder!');
-        console.log('� Please check that ssl/cert.pem and ssl/key.pem exist');
-    } else if (err.code === 'EADDRINUSE') {
-        console.log(`❌ Port 3443 is already in use!`);
-        console.log('💡 Close other servers or change the port number');
+// For Vercel serverless function
+if (isVercel) {
+    module.exports = handleRequest;
+} else {
+    // For local/Docker HTTPS server
+    let server;
+    
+    // Check if SSL certificates exist
+    const sslKeyPath = './ssl/key.pem';
+    const sslCertPath = './ssl/cert.pem';
+    
+    if (fs.existsSync(sslKeyPath) && fs.existsSync(sslCertPath)) {
+        // Use HTTPS if certificates are available
+        const options = {
+            key: fs.readFileSync(sslKeyPath),
+            cert: fs.readFileSync(sslCertPath)
+        };
+        server = https.createServer(options, handleRequest);
+        console.log('🔒 Starting HTTPS server...');
     } else {
-        console.error('❌ Server error:', err);
+        // Fallback to HTTP if no certificates
+        server = http.createServer(handleRequest);
+        console.log('⚠️  SSL certificates not found, starting HTTP server...');
     }
-});
+    
+    server.listen(port, '0.0.0.0', () => {
+        const protocol = server instanceof https.Server ? 'https' : 'http';
+        console.log(`${protocol === 'https' ? '🔒' : '🌐'} Server Started Successfully!`);
+        console.log(`📍 Local: ${protocol}://localhost:${port}/`);
+        console.log(`🌐 Network: ${protocol}://YOUR_IP_ADDRESS:${port}/`);
+        console.log('🛡️  Security headers enabled');
+        if (protocol === 'https') {
+            console.log('📋 Accept the certificate warning in your browser');
+        }
+        console.log('💡 To find your IP: run "ipconfig" and look for IPv4 Address');
+        console.log('⏹️  Press Ctrl+C to stop server');
+    });
+
+    // Graceful shutdown
+    process.on('SIGINT', () => {
+        console.log('\n🔴 Server stopped gracefully');
+        server.close();
+        process.exit();
+    });
+
+    // Error handling
+    server.on('error', (err) => {
+        if (err.code === 'ENOENT') {
+            console.log('❌ SSL certificates not found in ssl/ folder!');
+            console.log('💡 Please check that ssl/cert.pem and ssl/key.pem exist');
+        } else if (err.code === 'EADDRINUSE') {
+            console.log(`❌ Port ${port} is already in use!`);
+            console.log('💡 Close other servers or change the port number');
+        } else {
+            console.error('❌ Server error:', err);
+        }
+    });
+}

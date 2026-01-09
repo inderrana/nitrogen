@@ -1,0 +1,11 @@
+node_modules
+ssl
+.git
+.gitignore
+docker-compose.yml
+docker-run.bat
+docker-stop.bat
+Dockerfile
+make-custom-cert.bat
+*.md
+public
