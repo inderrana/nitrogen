@@ -1389,20 +1389,35 @@ class UserProfileManager {
      */
     async importAccount(importData) {
         try {
-            console.log('Import data received:', importData);
+            console.log('[IMPORT] Import data received:', importData);
             
-            if (!importData || !importData.profile || !importData.version) {
-                console.error('Invalid format - missing required fields');
-                return { success: false, error: 'Invalid import file format' };
+            if (!importData || typeof importData !== 'object') {
+                console.error('[IMPORT] Invalid format - not an object');
+                return { success: false, error: 'Invalid import file: not a valid object' };
+            }
+            
+            if (!importData.profile) {
+                console.error('[IMPORT] Invalid format - missing profile field');
+                return { success: false, error: 'Invalid import file: missing profile data' };
+            }
+            
+            if (!importData.version) {
+                console.error('[IMPORT] Invalid format - missing version field');
+                return { success: false, error: 'Invalid import file: missing version field' };
             }
 
             const profile = importData.profile;
-            console.log('Profile data:', profile);
+            console.log('[IMPORT] Profile data:', profile);
             
             // Validate required fields
-            if (!profile.username || !profile.email) {
-                console.error('Missing username or email');
-                return { success: false, error: 'Missing required profile data' };
+            if (!profile.username) {
+                console.error('[IMPORT] Missing username');
+                return { success: false, error: 'Missing required field: username' };
+            }
+            
+            if (!profile.email) {
+                console.error('[IMPORT] Missing email');
+                return { success: false, error: 'Missing required field: email' };
             }
 
             // Check if user already exists and warn
