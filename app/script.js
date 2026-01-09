@@ -3356,10 +3356,13 @@ class NewTabHomepage {
                     widget.style.transform = 'none';
                 }
                 
-                // Get current position
+                // Get current position from computed style or element position
                 const rect = widget.getBoundingClientRect();
-                xOffset = rect.left;
-                yOffset = rect.top;
+                const computedLeft = parseInt(window.getComputedStyle(widget).left) || rect.left;
+                const computedTop = parseInt(window.getComputedStyle(widget).top) || rect.top;
+                
+                xOffset = computedLeft;
+                yOffset = computedTop;
                 
                 initialX = e.clientX - xOffset;
                 initialY = e.clientY - yOffset;
@@ -3373,17 +3376,18 @@ class NewTabHomepage {
                 currentX = e.clientX - initialX;
                 currentY = e.clientY - initialY;
                 
-                xOffset = currentX;
-                yOffset = currentY;
-                
                 // Add padding from edges (20px minimum space)
                 const edgePadding = 20;
-                const rect = widget.getBoundingClientRect();
-                const maxX = window.innerWidth - rect.width - edgePadding;
-                const maxY = window.innerHeight - rect.height - edgePadding;
+                const widgetWidth = widget.offsetWidth;
+                const widgetHeight = widget.offsetHeight;
+                const maxX = window.innerWidth - widgetWidth - edgePadding;
+                const maxY = window.innerHeight - widgetHeight - edgePadding;
                 
                 currentX = Math.max(edgePadding, Math.min(currentX, maxX));
                 currentY = Math.max(edgePadding, Math.min(currentY, maxY));
+                
+                xOffset = currentX;
+                yOffset = currentY;
                 
                 widget.style.left = currentX + 'px';
                 widget.style.top = currentY + 'px';
@@ -4823,7 +4827,13 @@ class NewTabHomepage {
         const importType = event.target.dataset.importType || 'profile';
 
         try {
-            const text = await file.text();
+            // Use FileReader for better compatibility across environments
+            const text = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = (e) => reject(new Error('Failed to read file'));
+                reader.readAsText(file);
+            });
             const importData = JSON.parse(text);
             
             if (importData.profile && importData.version) {
