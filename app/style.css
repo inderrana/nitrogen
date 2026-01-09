@@ -977,8 +977,11 @@ body.theme-cobalt {
     position: fixed;
     bottom: 2rem;
     right: 2rem;
-    width: 280px;
-    max-height: 400px;
+    width: 350px;
+    height: 500px;
+    max-height: 80vh;
+    min-height: 300px;
+    min-width: 280px;
     background: var(--glass-bg);
     backdrop-filter: blur(20px);
     border: 1px solid var(--glass-border);
@@ -986,6 +989,9 @@ body.theme-cobalt {
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
     overflow: hidden;
     z-index: 100;
+    resize: both;
+    display: flex;
+    flex-direction: column;
 }
 
 /* Quick Links Widget */
@@ -1053,6 +1059,12 @@ body.theme-cobalt {
 .quicklinks-widget::-webkit-resizer {
     background: rgba(255, 255, 255, 0.3);
     border-radius: 0 0 20px 0;
+}
+
+/* Resize handle styling for reminder widget */
+.reminder-widget::-webkit-resizer {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 0 0 16px 0;
 }
 
 /* Draggable Widget Styles */
@@ -1132,9 +1144,11 @@ body.theme-cobalt {
 }
 
 .reminder-list {
-    max-height: 300px;
+    flex: 1;
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 0.5rem;
+    min-height: 0;
 }
 
 .reminder-item {
