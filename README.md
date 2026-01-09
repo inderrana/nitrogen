@@ -7,12 +7,12 @@ A customizable browser start page with profile management, weather updates, and 
 Nitrogen is a self-hosted browser start page that combines beauty with functionality. It features a customizable dashboard with real-time weather, quick links, reminders, and user profiles. Your data stays local and secure.
 
 **Key Features:**
-- 🎨 **Beautiful & Customizable** - Themes, links, weather, and more
-- 🏠 **Self-hosted** - Run it on your own machine
-- 📱 **Network accessible** - Use from any device on your network
-- 🐳 **Docker-ready** - One command to run
-- 🌤️ **Weather & Time** - Real-time updates with animations
-- 🔗 **Quick Links** - Custom bookmarks and shortcuts
+- **Beautiful & Customizable** - Themes, links, weather, and more
+- **Self-hosted** - Run it on your own machine
+- **Network accessible** - Use from any device on your network
+- **Docker-ready** - One command to run
+- **Weather & Time** - Real-time updates with animations
+- **Quick Links** - Custom bookmarks and shortcuts
 
 ## Quick Start
 
