@@ -24,9 +24,36 @@ ssl/ca/ca-cert.pem
 # Other untracked files
 *.db
 *.sqlite
+*.sqlite3
+db.sqlite3
 backup/
 exports/
 
+# Python
+__pycache__/
+*.py[cod]
+*.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+venv/
+env/
+ENV/
 
 # IDE and Editor files
 .vscode/*
@@ -58,3 +85,7 @@ security-reports/
 *test-data*.json
 *dummy-data*.json
 Untitled-*.json
+
+# Django media and static files (if needed)
+media/
+staticfiles/
