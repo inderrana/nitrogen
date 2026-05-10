@@ -1247,7 +1247,7 @@ class NewTabHomepage {
         }
         
         if (iconElement && customIcon) {
-            iconElement.innerHTML = `<i class="${customIcon}"></i>`;
+            iconElement.innerHTML = `<i class="${this.sanitizeIconClass(customIcon)}"></i>`;
         } else if (iconElement && data.weather && data.weather[0]) {
             const weatherMain = data.weather[0].main.toLowerCase();
             let iconClass = 'fas fa-cloud';
@@ -1345,7 +1345,7 @@ class NewTabHomepage {
             }
             
             if (iconElement && customIcon) {
-                iconElement.innerHTML = `<i class="${customIcon}"></i>`;
+                iconElement.innerHTML = `<i class="${this.sanitizeIconClass(customIcon)}"></i>`;
             }
             
             if (locationElement && data.name) {
@@ -3731,6 +3731,10 @@ class NewTabHomepage {
                     e.target.hasAttribute('contenteditable')) {
                     return;
                 }
+                // Don't drag if clicking the native resize corner (bottom-right ~18px)
+                const rect = widget.getBoundingClientRect();
+                const inResizeCorner = (e.clientX >= rect.right - 18) && (e.clientY >= rect.bottom - 18);
+                if (inResizeCorner) return;
                 // If header is visible, only allow dragging from inside the handle.
                 // If header is hidden, allow dragging from the widget body.
                 const headerHidden = widget.classList.contains('widget-header-hidden');
@@ -3747,7 +3751,6 @@ class NewTabHomepage {
                 }
                 
                 // Get current position from computed style or element position
-                const rect = widget.getBoundingClientRect();
                 const computedLeft = parseInt(window.getComputedStyle(widget).left) || rect.left;
                 const computedTop = parseInt(window.getComputedStyle(widget).top) || rect.top;
                 
@@ -5961,6 +5964,7 @@ class NewTabHomepage {
             { tz: 'Europe/London', label: 'London' },
             { tz: 'Europe/Berlin', label: 'Berlin' },
             { tz: 'Asia/Dubai', label: 'Dubai' },
+            { tz: 'Asia/Kolkata', label: 'Delhi' },
             { tz: 'Asia/Kolkata', label: 'Mumbai' },
             { tz: 'Asia/Singapore', label: 'Singapore' },
             { tz: 'Asia/Tokyo', label: 'Tokyo' },

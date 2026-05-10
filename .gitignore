@@ -89,3 +89,25 @@ Untitled-*.json
 # Django media and static files (if needed)
 media/
 staticfiles/
+
+# Build / deployment outputs
+.vercel/
+.next/
+.cache/
+dist/
+out/
+coverage/
+.nyc_output/
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+desktop.ini
+*.bak
+*.tmp
+*.orig
+
+# Local-only scratch files
+check_ids.js
+scratch/
+tmp/

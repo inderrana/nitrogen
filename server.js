@@ -48,7 +48,7 @@ const CSP = [
     "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com",
     "style-src-elem 'self' 'unsafe-inline' https://cdnjs.cloudflare.com",
     "script-src 'self'",
-    "connect-src 'self' https://api.open-meteo.com https://geocoding-api.open-meteo.com https://api.openweathermap.org",
+    "connect-src 'self' https://api.open-meteo.com https://geocoding-api.open-meteo.com https://api.openweathermap.org https://duckduckgo.com",
     "manifest-src 'self'"
 ].join('; ');
 
