@@ -45,7 +45,10 @@ class NewTabHomepage {
         this.weatherWidgetFrostEnabled = true; // Weather widget frost effect
         this.remindersWidgetFrostEnabled = true; // Reminders widget frost effect
         this.quicklinksWidgetFrostEnabled = true; // Quick Links widget frost effect
-        this.currentTheme = 'ocean'; // Track current theme
+        this.currentTheme = 'midnight'; // Track current theme (default)
+
+        // Widget visibility (default: all visible)
+        this.widgetVisibility = this.loadWidgetVisibility();
         
         // Store interval IDs for cleanup
         this.intervals = {
@@ -88,12 +91,21 @@ class NewTabHomepage {
         
         // Initialize quick links widget AFTER loading content (moves links from linksGrid to widget)
         this.initQuickLinksWidget();
+
+        // Apply saved widget visibility (after all widgets exist)
+        this.applyWidgetVisibility();
         
         // Initialize customize panel (in case page was refreshed with panel open)
         setTimeout(() => {
             this.reinitializeCustomizeTab();
         }, 500);
-        
+
+        // Global UX wiring (click-outside, debounce resize, ?-shortcut, prefers-color-scheme)
+        this.setupGlobalUX();
+
+        // New feature widgets + UI
+        this.initNewFeatures();
+
         // Store interval IDs for cleanup
         this.intervals.time = setInterval(() => this.updateTime(), 1000);
         this.intervals.greeting = setInterval(() => this.setGreeting(), 5 * 60 * 1000);
@@ -184,6 +196,8 @@ class NewTabHomepage {
                     this.performSearch(this.currentSearchEngine);
                 }
             });
+            // Live suggestions (DuckDuckGo autocomplete)
+            this.setupSearchSuggestions(searchInput);
         }
 
         // Search engine tabs - switch engine and focus input
@@ -380,6 +394,10 @@ class NewTabHomepage {
                 e.preventDefault();
                 this.saveContent();
             }
+            if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+                e.preventDefault();
+                this.openCommandPalette();
+            }
             if (e.key === '/' && !this.isEditing && searchInput) {
                 e.preventDefault();
                 searchInput.focus();
@@ -539,7 +557,13 @@ class NewTabHomepage {
         const now = new Date();
         const timeElement = document.getElementById('currentTime');
         const dateElement = document.getElementById('currentDate');
-        
+
+        // Skip work if the displayed minute hasn't changed (the clock has no seconds)
+        const minuteKey = now.getFullYear() + '-' + now.getMonth() + '-' + now.getDate()
+            + 'T' + now.getHours() + ':' + now.getMinutes();
+        if (this._lastMinuteKey === minuteKey) return;
+        this._lastMinuteKey = minuteKey;
+
         // Format time
         const timeOptions = { 
             hour: '2-digit', 
@@ -556,8 +580,8 @@ class NewTabHomepage {
         };
         const dateString = now.toLocaleDateString('en-US', dateOptions);
         
-        if (timeElement) timeElement.textContent = timeString;
-        if (dateElement) dateElement.textContent = dateString;
+        if (timeElement && timeElement.textContent !== timeString) timeElement.textContent = timeString;
+        if (dateElement && dateElement.textContent !== dateString) dateElement.textContent = dateString;
     }
 
     setGreeting() {
@@ -855,37 +879,25 @@ class NewTabHomepage {
     }
 
     showCitySelectionDropdown(cities) {
-        console.log('[WEATHER] Showing city selection dropdown with', cities.length, 'cities');
-        
         // Store cities data
         this.pendingCities = cities;
         this.filteredCities = [...cities];
-        
-        // Show dropdown
+
         const cityDropdown = document.getElementById('customizeCityDropdown');
         const cityDropdownList = document.getElementById('customizeCityDropdownList');
         const citySearchInput = document.getElementById('customizeCitySearchInput');
-        
-        console.log('[WEATHER] City dropdown element:', cityDropdown);
-        console.log('[WEATHER] City dropdown list element:', cityDropdownList);
-        
-        if (!cityDropdown || !cityDropdownList) {
-            console.error('[WEATHER] City dropdown elements not found!');
-            return;
-        }
-        
+
+        if (!cityDropdown || !cityDropdownList) return;
+
         // Populate cities
         this.populateCityDropdown(this.filteredCities);
-        
+
         // Show dropdown
         cityDropdown.style.display = 'block';
-        console.log('[WEATHER] City dropdown display set to block');
-        
+
         // Focus search input
         setTimeout(() => {
-            if (citySearchInput) {
-                citySearchInput.focus();
-            }
+            if (citySearchInput) citySearchInput.focus();
         }, 100);
         
         // Setup event listeners if not already done
@@ -894,34 +906,26 @@ class NewTabHomepage {
 
     populateCityDropdown(cities) {
         const cityDropdownList = document.getElementById('customizeCityDropdownList');
-        if (!cityDropdownList) {
-            console.error('[WEATHER] City dropdown list not found in populateCityDropdown');
-            return;
-        }
-        
-        console.log('[WEATHER] Populating dropdown with', cities.length, 'cities');
-        
+        if (!cityDropdownList) return;
+
+        const esc = (t) => this.escapeHtml(String(t == null ? '' : t));
         cityDropdownList.innerHTML = cities.map((city, index) => `
             <div class="city-option" data-index="${index}">
-                <div class="city-name">${city.name}</div>
+                <div class="city-name">${esc(city.name)}</div>
                 <div class="city-details">
-                    ${city.admin1 ? city.admin1 + ', ' : ''}${city.country}
-                    ${city.country_code ? ` (${city.country_code})` : ''}
+                    ${city.admin1 ? esc(city.admin1) + ', ' : ''}${esc(city.country)}
+                    ${city.country_code ? ` (${esc(city.country_code)})` : ''}
                 </div>
             </div>
         `).join('');
-        
-        console.log('[WEATHER] City options HTML generated');
-        
+
         // Add click listeners to city options
         const cityOptions = cityDropdownList.querySelectorAll('.city-option');
-        console.log('[WEATHER] Found', cityOptions.length, 'city options to add listeners');
         cityOptions.forEach(option => {
             option.addEventListener('click', () => {
-                const index = parseInt(option.dataset.index);
+                const index = parseInt(option.dataset.index, 10);
                 const selectedCity = this.filteredCities[index];
-                console.log('[WEATHER] City selected:', selectedCity.name);
-                this.selectCity(selectedCity);
+                if (selectedCity) this.selectCity(selectedCity);
             });
         });
     }
@@ -1042,7 +1046,7 @@ class NewTabHomepage {
             const temp = Math.round(current.temperature);
             const weatherCode = current.weathercode;
             
-            console.log('[WEATHER API] Received data:', {
+            this.log('[WEATHER API] Received data:', {
                 temperature: temp,
                 weatherCode: weatherCode,
                 cityData: cityData,
@@ -1432,16 +1436,40 @@ class NewTabHomepage {
 
     performSearch(engine = null) {
         const searchInput = document.getElementById('searchInput');
-        const query = searchInput.value.trim();
-        
-        if (query) {
-            const targetEngine = engine || this.currentSearchEngine;
-            const engineData = this.searchEngines[targetEngine];
-            const searchUrl = engineData.url + encodeURIComponent(query);
-            window.open(searchUrl, '_blank');
-            
+        let query = searchInput.value.trim();
+        if (!query) return;
+
+        // Bang support: "!gh foo" jumps to GitHub regardless of current engine
+        const bangMatch = query.match(/^!([a-z0-9_-]+)\s+(.+)$/i);
+        if (bangMatch) {
+            const bangKey = '!' + bangMatch[1].toLowerCase();
+            const realQuery = bangMatch[2].trim();
+            const customEngines = this.getCustomEngines();
+            const customHit = customEngines.find(e => e.bang && e.bang.toLowerCase() === bangKey);
+            if (customHit) {
+                window.open(customHit.url.replace('%s', encodeURIComponent(realQuery)), '_blank');
+                searchInput.value = '';
+                return;
+            }
+            // DuckDuckGo native bang fallback (e.g. !w, !yt, !gh, ...)
+            window.open('https://duckduckgo.com/?q=' + encodeURIComponent('!' + bangMatch[1] + ' ' + realQuery), '_blank');
             searchInput.value = '';
+            return;
         }
+
+        const targetEngine = engine || this.currentSearchEngine;
+        // Custom engine selected via tab
+        const customEngines = this.getCustomEngines();
+        const customHit = customEngines.find(e => e.id === targetEngine);
+        if (customHit) {
+            window.open(customHit.url.replace('%s', encodeURIComponent(query)), '_blank');
+            searchInput.value = '';
+            return;
+        }
+        const engineData = this.searchEngines[targetEngine];
+        if (!engineData) return;
+        window.open(engineData.url + encodeURIComponent(query), '_blank');
+        searchInput.value = '';
     }
 
     switchSearchEngine(engine) {
@@ -1464,97 +1492,38 @@ class NewTabHomepage {
     }
 
     addLink() {
-        this.log('Add link button clicked'); // Debug log
-        
+        this.log('Add link button clicked');
+
         const linksGrid = document.getElementById('linksGrid');
         if (!linksGrid) {
             console.error('Links grid not found');
-            alert('Error: Could not find links container');
+            this.toast('Could not find links container', 'error');
             return;
         }
 
-        // Check if we already have 12 links (3 rows × 4 columns)
         const existingLinks = linksGrid.querySelectorAll('.link-item').length;
         if (existingLinks >= 12) {
-            alert('Maximum of 12 Quick Links allowed to keep everything on screen without scrolling.');
+            this.toast('Maximum of 12 Quick Links reached.', 'warn');
             return;
         }
-        
-        try {
-            // Ask user what type of link they want to add
-            const linkType = prompt('What type of link?\n\n1. Website URL\n2. Windows/Mac App\n\nEnter 1 or 2:');
-            
-            if (!linkType || (linkType.trim() !== '1' && linkType.trim() !== '2')) {
-                this.log('User cancelled or entered invalid option');
-                return;
-            }
-            
-            let validUrl;
-            
-            if (linkType.trim() === '2') {
-                // App protocol link
-                const appInfo = prompt('Enter app protocol or path\n\nExamples:\n- whatsapp://\n- ms-settings:\n- steam://\n- spotify:\n- C:\\Program Files\\App\\app.exe (Windows)\n- /Applications/App.app (Mac)');
-                
-                if (!appInfo || appInfo.trim() === '') {
-                    this.log('User cancelled or entered empty app info');
-                    return;
-                }
-                
-                validUrl = appInfo.trim();
-                
-                // If it looks like a file path, convert to app:// protocol
-                if (validUrl.includes('\\') || validUrl.includes('/Applications/')) {
-                    // Keep as-is for now, browser will handle it
-                    validUrl = 'file:///' + validUrl.replace(/\\/g, '/');
-                }
-            } else {
-                // Website URL
-                const url = prompt('Enter URL (e.g., example.com or https://example.com):');
-                if (!url || url.trim() === '') {
-                    this.log('User cancelled or entered empty URL');
-                    return;
-                }
-                
-                // Validate and format URL
-                validUrl = url.trim();
-                if (!validUrl.startsWith('http://') && !validUrl.startsWith('https://')) {
+
+        this.openLinkModal({
+            mode: 'add',
+            onSave: ({ name, url, icon, newTab }) => {
+                let validUrl = url.trim();
+                const isAppProtocol = /^[a-z][a-z0-9+\-.]*:/i.test(validUrl) &&
+                    !validUrl.startsWith('http://') && !validUrl.startsWith('https://');
+                if (!isAppProtocol && !validUrl.startsWith('http://') && !validUrl.startsWith('https://')) {
                     validUrl = 'https://' + validUrl;
                 }
+                const finalIcon = icon.trim() || (isAppProtocol ? 'fas fa-desktop' : 'fas fa-link');
+                this.createAndAddLinkElement(linksGrid, validUrl, name.trim(), finalIcon, { newTab });
+                this.updateGridLayout();
+                this.saveContent();
+                this.populateLinksManager();
+                this.log('Link added:', { validUrl, name: name.trim(), icon: finalIcon });
             }
-            
-            // Get name
-            const name = prompt('Enter link name:');
-            if (!name || name.trim() === '') {
-                this.log('User cancelled or entered empty name');
-                return;
-            }
-            
-            // Get icon
-            let icon = prompt('Enter Font Awesome icon class (e.g., fab fa-google, fas fa-globe, fab fa-whatsapp):');
-            if (!icon || icon.trim() === '') {
-                icon = linkType.trim() === '2' ? 'fas fa-desktop' : 'fas fa-link';
-            }
-            
-            this.log('Creating link with:', { validUrl, name: name.trim(), icon });
-            
-            // Create the link using the helper method
-            this.createAndAddLinkElement(linksGrid, validUrl, name.trim(), icon);
-            
-            // Update grid layout based on number of links
-            this.updateGridLayout();
-            
-            // Save immediately
-            this.saveContent();
-            
-            // Update the customize panel links list
-            this.populateLinksManager();
-            
-            this.log('Link added successfully');
-            
-        } catch (error) {
-            console.error('Error in addLink:', error);
-            alert('Error adding link: ' + error.message);
-        }
+        });
     }
 
     createAndAddLinkElementDirect(container, url, name, icon) {
@@ -1564,40 +1533,50 @@ class NewTabHomepage {
         return newLink;
     }
 
-    createLinkStructure(url, name, icon) {
+    createLinkStructure(url, name, icon, options = {}) {
         // Create new link element
         const newLink = document.createElement('div');
         newLink.className = 'link-item';
-        
+        if (options.newTab) newLink.dataset.newTab = '1';
+
+        // Validate the URL scheme to prevent javascript:/data: XSS
+        const safeUrl = this.sanitizeUrl(url);
+
         // Create the HTML structure
         const linkCard = document.createElement('a');
-        linkCard.href = url;
-        // Don't open in new tab - open in same window
+        linkCard.href = safeUrl;
+        linkCard.rel = 'noopener noreferrer';
+        if (options.newTab) {
+            linkCard.target = '_blank';
+        }
         linkCard.className = 'link-card';
-        
+
         const iconElement = document.createElement('i');
-        iconElement.className = icon + ' link-icon';
-        
+        // Whitelist Font Awesome icon classes only
+        iconElement.className = this.sanitizeIconClass(icon) + ' link-icon';
+        iconElement.setAttribute('aria-hidden', 'true');
+
         const nameElement = document.createElement('span');
         nameElement.className = 'link-name editable';
         nameElement.contentEditable = 'false';
         nameElement.setAttribute('data-placeholder', 'Link Name');
         nameElement.textContent = name;
-        
+
         const removeBtn = document.createElement('button');
         removeBtn.className = 'remove-btn';
-        removeBtn.innerHTML = '×';
+        removeBtn.textContent = '×';
+        removeBtn.setAttribute('aria-label', `Remove ${name} link`);
         removeBtn.style.display = 'none';
-        
+
         // Assemble the structure
         linkCard.appendChild(iconElement);
         linkCard.appendChild(nameElement);
         newLink.appendChild(linkCard);
         newLink.appendChild(removeBtn);
-        
+
         // Set positioning
         newLink.style.position = 'relative';
-        
+
         // Add event listeners
         const handleRemove = (e) => {
             e.preventDefault();
@@ -1626,8 +1605,8 @@ class NewTabHomepage {
         return newLink;
     }
 
-    createAndAddLinkElement(container, url, name, icon) {
-        const newLink = this.createLinkStructure(url, name, icon);
+    createAndAddLinkElement(container, url, name, icon, options = {}) {
+        const newLink = this.createLinkStructure(url, name, icon, options);
         
         // Add to the appropriate container
         // If adding to the old grid, actually add to quicklinks widget instead
@@ -1742,27 +1721,145 @@ class NewTabHomepage {
     }
 
     changeWeatherCity() {
-        // Open profile panel and switch to customize tab
-        this.openProfilePanel();
-        
-        setTimeout(() => {
-            // Switch to customize tab
-            this.switchProfileTab('customize');
-            
-            // Focus on weather input after a short delay to ensure tab is loaded
-            setTimeout(() => {
-                const weatherLocationInput = document.getElementById('customizeWeatherLocationInput');
-                if (weatherLocationInput) {
-                    // Get original city name (not the display name with state)
-                    const originalCity = this.getOriginalCityName();
-                    if (originalCity && originalCity !== 'Loading...' && originalCity !== 'Your City') {
-                        weatherLocationInput.value = originalCity;
-                    }
-                    weatherLocationInput.focus();
-                    weatherLocationInput.select();
+        // Open dedicated location search modal directly
+        this.openWeatherLocationModal();
+    }
+
+    openWeatherLocationModal() {
+        const modal = document.getElementById('weatherLocationModal');
+        const input = document.getElementById('weatherLocationModalInput');
+        const list = document.getElementById('weatherLocationModalList');
+        if (!modal || !input || !list) return;
+
+        // Pre-fill with current city if available
+        const originalCity = this.getOriginalCityName();
+        if (originalCity && originalCity !== 'Loading...' && originalCity !== 'Your City') {
+            input.value = originalCity;
+        } else {
+            input.value = '';
+        }
+        list.innerHTML = '';
+
+        modal.classList.add('open');
+        modal.setAttribute('aria-hidden', 'false');
+        setTimeout(() => { input.focus(); input.select(); }, 50);
+
+        // Wire listeners once
+        if (!this._weatherLocationModalWired) {
+            this._weatherLocationModalWired = true;
+            let activeIdx = -1;
+            let currentResults = [];
+            let abortCtrl = null;
+            let debounceTimer = null;
+
+            const close = () => {
+                modal.classList.remove('open');
+                modal.setAttribute('aria-hidden', 'true');
+                if (abortCtrl) { try { abortCtrl.abort(); } catch {} }
+            };
+            this._closeWeatherLocationModal = close;
+
+            const render = (results) => {
+                currentResults = results || [];
+                activeIdx = currentResults.length ? 0 : -1;
+                if (!currentResults.length) {
+                    list.innerHTML = `<div class="cmd-empty">No matches</div>`;
+                    return;
                 }
-            }, 100);
-        }, 100);
+                const esc = (t) => this.escapeHtml(String(t == null ? '' : t));
+                list.innerHTML = currentResults.map((c, i) => `
+                    <div class="cmd-item${i === 0 ? ' active' : ''}" role="option" data-index="${i}">
+                        <i class="fas fa-map-marker-alt cmd-icon" aria-hidden="true"></i>
+                        <div class="cmd-label">
+                            <div class="cmd-title">${esc(c.name)}</div>
+                            <div class="cmd-sub">${c.admin1 ? esc(c.admin1) + ', ' : ''}${esc(c.country || '')}${c.country_code ? ' (' + esc(c.country_code) + ')' : ''}</div>
+                        </div>
+                    </div>
+                `).join('');
+                list.querySelectorAll('.cmd-item').forEach(el => {
+                    el.addEventListener('mouseenter', () => {
+                        activeIdx = parseInt(el.dataset.index, 10);
+                        list.querySelectorAll('.cmd-item').forEach(x => x.classList.remove('active'));
+                        el.classList.add('active');
+                    });
+                    el.addEventListener('click', () => {
+                        const idx = parseInt(el.dataset.index, 10);
+                        const city = currentResults[idx];
+                        if (city) {
+                            this.fetchWeatherForLocation(city.latitude, city.longitude, city, true);
+                            const customizeInput = document.getElementById('customizeWeatherLocationInput');
+                            if (customizeInput) customizeInput.value = city.name;
+                            close();
+                        }
+                    });
+                });
+            };
+
+            const search = async (query) => {
+                if (!query || query.length < 2) {
+                    list.innerHTML = `<div class="cmd-empty">Type at least 2 characters…</div>`;
+                    currentResults = [];
+                    return;
+                }
+                if (abortCtrl) { try { abortCtrl.abort(); } catch {} }
+                abortCtrl = new AbortController();
+                try {
+                    const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=8&language=en&format=json`;
+                    const res = await fetch(url, { signal: abortCtrl.signal });
+                    if (!res.ok) throw new Error('Geocoding error');
+                    const data = await res.json();
+                    render(data.results || []);
+                } catch (err) {
+                    if (err && err.name === 'AbortError') return;
+                    list.innerHTML = `<div class="cmd-empty">Search failed</div>`;
+                }
+            };
+
+            input.addEventListener('input', () => {
+                clearTimeout(debounceTimer);
+                const q = input.value.trim();
+                debounceTimer = setTimeout(() => search(q), 220);
+            });
+
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') { e.preventDefault(); close(); return; }
+                if (!currentResults.length) return;
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    activeIdx = (activeIdx + 1) % currentResults.length;
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    activeIdx = (activeIdx - 1 + currentResults.length) % currentResults.length;
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const city = currentResults[activeIdx];
+                    if (city) {
+                        this.fetchWeatherForLocation(city.latitude, city.longitude, city, true);
+                        const customizeInput = document.getElementById('customizeWeatherLocationInput');
+                        if (customizeInput) customizeInput.value = city.name;
+                        close();
+                    }
+                    return;
+                } else {
+                    return;
+                }
+                list.querySelectorAll('.cmd-item').forEach((el, i) => {
+                    el.classList.toggle('active', i === activeIdx);
+                    if (i === activeIdx) el.scrollIntoView({ block: 'nearest' });
+                });
+            });
+
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) close();
+            });
+        }
+
+        // Auto-search if pre-filled
+        if (input.value.trim().length >= 2) {
+            input.dispatchEvent(new Event('input'));
+        } else {
+            list.innerHTML = `<div class="command-palette-empty">Type at least 2 characters…</div>`;
+        }
     }
 
     setupAutoSave() {
@@ -2320,13 +2417,16 @@ class NewTabHomepage {
 
     loadSavedTheme() {
         const savedTheme = localStorage.getItem('selectedTheme');
-        if (savedTheme) {
-            if (this.themeSelect) {
-                this.themeSelect.value = savedTheme;
-            }
-            // Don't save to profile when loading initial theme
-            this.changeTheme(savedTheme, false);
+        const themeToApply = savedTheme || 'midnight';
+        if (this.themeSelect) {
+            this.themeSelect.value = themeToApply;
         }
+        // Persist default on first run so it sticks after reload
+        if (!savedTheme) {
+            try { localStorage.setItem('selectedTheme', 'midnight'); } catch {}
+        }
+        // Don't save to profile when loading initial theme
+        this.changeTheme(themeToApply, false);
         
         // Load weather effects preference
         const savedEffectsPref = localStorage.getItem('weatherEffectsEnabled');
@@ -2470,6 +2570,10 @@ class NewTabHomepage {
             document.getElementById('reminderText').value = '';
             document.getElementById('reminderPriority').value = 'medium';
             document.getElementById('reminderDate').value = '';
+            const rec = document.getElementById('reminderRecurrence');
+            if (rec) rec.value = 'none';
+            const chk = document.getElementById('reminderChecklist');
+            if (chk) chk.value = '';
             document.getElementById('reminderText').focus();
         }
     }
@@ -2484,17 +2588,28 @@ class NewTabHomepage {
         const text = document.getElementById('reminderText').value.trim();
         const priority = document.getElementById('reminderPriority').value;
         const date = document.getElementById('reminderDate').value;
+        const recurrence = (document.getElementById('reminderRecurrence') || {}).value || 'none';
+        const checklistRaw = (document.getElementById('reminderChecklist') || {}).value || '';
 
         if (!text) {
-            alert('Please enter reminder text');
+            this.toast('Please enter reminder text', 'warn');
             return;
         }
+
+        const checklist = checklistRaw
+            .split('\n')
+            .map(s => s.trim())
+            .filter(Boolean)
+            .map((s, i) => ({ id: Date.now() + i, text: s, done: false }));
 
         const reminder = {
             id: Date.now(),
             text: text,
             priority: priority,
             date: date || null,
+            recurrence,
+            checklist,
+            snoozedUntil: null,
             createdAt: new Date().toISOString(),
             completed: false
         };
@@ -2502,13 +2617,27 @@ class NewTabHomepage {
         this.reminders.unshift(reminder);
         this.saveReminders();
         this.renderReminders();
+        this.refreshCalendarHighlights();
         this.closeReminderModalFn();
     }
 
     deleteReminder(id) {
+        const removed = this.reminders.find(r => r.id === id);
         this.reminders = this.reminders.filter(r => r.id !== id);
         this.saveReminders();
         this.renderReminders();
+        this.refreshCalendarHighlights();
+        if (removed) {
+            this.toast('Reminder deleted', 'info', 5000, {
+                actionLabel: 'Undo',
+                onAction: () => {
+                    this.reminders.unshift(removed);
+                    this.saveReminders();
+                    this.renderReminders();
+                    this.refreshCalendarHighlights();
+                }
+            });
+        }
     }
 
     toggleReminder(id) {
@@ -2551,34 +2680,82 @@ class NewTabHomepage {
 
         this.reminderList.innerHTML = sortedReminders.map(reminder => {
             const dueDate = reminder.date ? new Date(reminder.date) : null;
-            const isOverdue = dueDate && dueDate < new Date();
-            const formattedDate = dueDate ? 
-                dueDate.toLocaleDateString('en-US', { 
-                    month: 'short', 
+            const now = new Date();
+            const snoozedActive = reminder.snoozedUntil && new Date(reminder.snoozedUntil) > now;
+            const isOverdue = dueDate && dueDate < now && !snoozedActive;
+            const formattedDate = dueDate ?
+                dueDate.toLocaleDateString('en-US', {
+                    month: 'short',
                     day: 'numeric',
                     hour: '2-digit',
                     minute: '2-digit'
                 }) : '';
+            const safeId = String(reminder.id).replace(/[^0-9a-z\-]/gi, '');
+
+            const badges = [];
+            if (reminder.recurrence && reminder.recurrence !== 'none') {
+                badges.push(`<span class="reminder-badge recurring"><i class="fas fa-redo" aria-hidden="true"></i>${escapeHtml(reminder.recurrence)}</span>`);
+            }
+            if (isOverdue && !reminder.completed) {
+                badges.push(`<span class="reminder-badge due">due</span>`);
+            }
+            if (snoozedActive) {
+                badges.push(`<span class="reminder-badge"><i class="fas fa-bell-slash" aria-hidden="true"></i>snoozed</span>`);
+            }
+
+            const checklist = Array.isArray(reminder.checklist) && reminder.checklist.length
+                ? `<div class="reminder-checklist">` + reminder.checklist.map(it => {
+                    const cid = String(it.id).replace(/[^0-9a-z\-]/gi, '');
+                    return `<label class="reminder-checklist-item ${it.done ? 'done' : ''}">
+                        <input type="checkbox" data-action="check" data-id="${safeId}" data-cid="${cid}" ${it.done ? 'checked' : ''}>
+                        <span>${escapeHtml(it.text)}</span>
+                    </label>`;
+                  }).join('') + `</div>`
+                : '';
 
             return `
-                <div class="reminder-item priority-${reminder.priority} ${reminder.completed ? 'completed' : ''}" data-id="${reminder.id}">
-                    <div class="reminder-text ${reminder.completed ? 'completed' : ''}">${escapeHtml(reminder.text)}</div>
+                <div class="reminder-item priority-${reminder.priority} ${reminder.completed ? 'completed' : ''}" data-id="${safeId}">
+                    <div class="reminder-text ${reminder.completed ? 'completed' : ''}">${escapeHtml(reminder.text)}${badges.join('')}</div>
+                    ${checklist}
                     <div class="reminder-meta">
                         <div class="reminder-date ${isOverdue && !reminder.completed ? 'overdue' : ''}">
                             ${formattedDate}
                         </div>
                         <div class="reminder-actions">
-                            <button class="reminder-action-btn toggle" onclick="window.newTabHomepage.toggleReminder(${reminder.id})" title="${reminder.completed ? 'Mark incomplete' : 'Mark complete'}">
-                                <i class="fas fa-${reminder.completed ? 'undo' : 'check'}"></i>
+                            ${dueDate && !reminder.completed ? `<button class="reminder-action-btn snooze" data-action="snooze" data-id="${safeId}" title="Snooze 10 min" aria-label="Snooze 10 minutes"><i class="fas fa-clock" aria-hidden="true"></i></button>` : ''}
+                            <button class="reminder-action-btn toggle" data-action="toggle" data-id="${safeId}" title="${reminder.completed ? 'Mark incomplete' : 'Mark complete'}" aria-label="${reminder.completed ? 'Mark incomplete' : 'Mark complete'}">
+                                <i class="fas fa-${reminder.completed ? 'undo' : 'check'}" aria-hidden="true"></i>
                             </button>
-                            <button class="reminder-action-btn delete" onclick="window.newTabHomepage.deleteReminder(${reminder.id})" title="Delete reminder">
-                                <i class="fas fa-trash"></i>
+                            <button class="reminder-action-btn delete" data-action="delete" data-id="${safeId}" title="Delete reminder" aria-label="Delete reminder">
+                                <i class="fas fa-trash" aria-hidden="true"></i>
                             </button>
                         </div>
                     </div>
                 </div>
             `;
         }).join('');
+
+        // Wire up actions via event delegation (no inline onclick = CSP-friendly + XSS-safer)
+        if (!this._reminderClickBound) {
+            this._reminderClickBound = true;
+            this.reminderList.addEventListener('click', (e) => {
+                const btn = e.target.closest('button[data-action]');
+                if (!btn) return;
+                const id = Number(btn.dataset.id);
+                if (!Number.isFinite(id)) return;
+                if (btn.dataset.action === 'toggle') this.toggleReminder(id);
+                else if (btn.dataset.action === 'delete') this.deleteReminder(id);
+                else if (btn.dataset.action === 'snooze') this.snoozeReminder(id, 10);
+            });
+            this.reminderList.addEventListener('change', (e) => {
+                const cb = e.target.closest('input[data-action="check"]');
+                if (!cb) return;
+                const id = Number(cb.dataset.id);
+                const cid = Number(cb.dataset.cid);
+                if (!Number.isFinite(id) || !Number.isFinite(cid)) return;
+                this.toggleChecklistItem(id, cid, cb.checked);
+            });
+        }
     }
 
     saveReminders() {
@@ -2603,16 +2780,40 @@ class NewTabHomepage {
 
     checkDueReminders() {
         const now = new Date();
+        let mutated = false;
         this.reminders.forEach(reminder => {
-            if (!reminder.completed && reminder.date && !reminder.notified) {
-                const dueDate = new Date(reminder.date);
-                if (dueDate <= now) {
-                    this.showReminderNotification(reminder);
-                    reminder.notified = true;
-                    this.saveReminders();
+            if (reminder.completed) return;
+            // Snooze takes precedence: if snoozed in the future, skip notification
+            if (reminder.snoozedUntil && new Date(reminder.snoozedUntil) > now) return;
+            if (!reminder.date || reminder.notified) return;
+            const dueDate = new Date(reminder.date);
+            if (dueDate <= now) {
+                this.showReminderNotification(reminder);
+                reminder.notified = true;
+                // Auto-reschedule for recurring reminders
+                if (reminder.recurrence && reminder.recurrence !== 'none') {
+                    const next = new Date(dueDate);
+                    if (reminder.recurrence === 'daily')   next.setDate(next.getDate() + 1);
+                    if (reminder.recurrence === 'weekly')  next.setDate(next.getDate() + 7);
+                    if (reminder.recurrence === 'monthly') next.setMonth(next.getMonth() + 1);
+                    // Skip past occurrences if user was offline
+                    while (next <= now) {
+                        if (reminder.recurrence === 'daily')   next.setDate(next.getDate() + 1);
+                        if (reminder.recurrence === 'weekly')  next.setDate(next.getDate() + 7);
+                        if (reminder.recurrence === 'monthly') next.setMonth(next.getMonth() + 1);
+                    }
+                    reminder.date = next.toISOString().slice(0, 16);
+                    reminder.notified = false;
+                    reminder.snoozedUntil = null;
                 }
+                mutated = true;
             }
         });
+        if (mutated) {
+            this.saveReminders();
+            this.renderReminders();
+            this.refreshCalendarHighlights();
+        }
     }
 
     showReminderNotification(reminder) {
@@ -2622,8 +2823,8 @@ class NewTabHomepage {
                 icon: '/favicon.ico'
             });
         } else {
-            // Fallback to browser alert
-            alert(`Reminder Due: ${reminder.text}`);
+            // Fallback to in-page toast
+            this.toast(`Reminder Due: ${reminder.text}`, 'info', 8000);
         }
     }
 
@@ -2981,6 +3182,54 @@ class NewTabHomepage {
             themeSelect.dataset.initialized = 'true';
             this.log('[CUSTOMIZE] Theme selector initialized');
         }
+
+        // Widget visibility toggles
+        [
+            ['customizeWidgetWeatherToggle',    'weather'],
+            ['customizeWidgetRemindersToggle',  'reminders'],
+            ['customizeWidgetQuicklinksToggle', 'quicklinks']
+        ].forEach(([id, key]) => {
+            const cb = document.getElementById(id);
+            if (cb && !cb.dataset.initialized) {
+                cb.checked = this.widgetVisibility[key] !== false;
+                cb.addEventListener('change', (e) => this.setWidgetVisible(key, e.target.checked));
+                cb.dataset.initialized = 'true';
+            }
+            // Reflect parent state on the row immediately
+            const row = document.querySelector(`.widget-vis-row[data-widget-key="${key}"]`);
+            if (row) row.classList.toggle('parent-on', this.widgetVisibility[key] !== false);
+        });
+
+        // Per-widget header visibility sub-toggles
+        const headerMap = this.loadWidgetHeaderVisibility();
+        document.querySelectorAll('input[data-widget-header]').forEach(cb => {
+            const key = cb.dataset.widgetHeader;
+            cb.checked = headerMap[key] !== false;
+            if (!cb.dataset.initialized) {
+                cb.addEventListener('change', (e) => this.setWidgetHeaderVisible(key, e.target.checked));
+                cb.dataset.initialized = 'true';
+            }
+        });
+
+        // Reset widget positions
+        const resetBtn = document.getElementById('customizeResetWidgetsBtn');
+        if (resetBtn && !resetBtn.dataset.initialized) {
+            resetBtn.addEventListener('click', () => {
+                try { localStorage.removeItem('widgetPositions'); } catch {}
+                if (this.userProfileManager && this.userProfileManager.isUserLoggedIn()) {
+                    const user = this.userProfileManager.getCurrentUser();
+                    if (user && user.profile) {
+                        delete user.profile.widgetPositions;
+                    }
+                }
+                document.querySelectorAll('.draggable-widget').forEach(w => {
+                    w.style.left = w.style.top = w.style.right = w.style.bottom = '';
+                    w.style.width = w.style.height = w.style.transform = '';
+                });
+                this.showSaveNotification('Widget positions reset');
+            });
+            resetBtn.dataset.initialized = 'true';
+        }
         
         // Weather effects toggle
         const weatherEffectsToggle = document.getElementById('customizeWeatherEffectsToggle');
@@ -3166,7 +3415,7 @@ class NewTabHomepage {
                         // Test WeatherAPI.com
                         const apiKey = this.getWeatherApiKey();
                         if (!apiKey) {
-                            alert('WeatherAPI key required!\n\nPlease enter your API key first.\nGet a free key at: weatherapi.com');
+                            this.notify('WeatherAPI key required', 'Please enter your API key first. Get a free key at weatherapi.com.');
                             return;
                         }
                         
@@ -3175,7 +3424,7 @@ class NewTabHomepage {
                         const data = await response.json();
                         
                         if (data.error) {
-                            alert('API ERROR\n\n' + data.error.message);
+                            this.notify('API error', data.error.message);
                             return;
                         }
                         
@@ -3197,7 +3446,7 @@ class NewTabHomepage {
                             'API ENDPOINT\n' +
                             '  ' + weatherUrl.replace(apiKey, '***KEY***');
                         
-                        alert(message);
+                        this.notify('Weather API test', message);
                         return;
                     }
                     
@@ -3250,9 +3499,9 @@ class NewTabHomepage {
                             '  Geocoding: ' + geocodeUrl + '\n\n' +
                             '  Weather: ' + weatherUrl;
                         
-                        alert(message);
+                        this.notify('Weather API test', message);
                     } else {
-                        alert('CITY NOT FOUND\n\nNo results for: ' + city + '\n\nPlease check the spelling and try again.');
+                        this.notify('City not found', 'No results for: ' + city + '. Please check the spelling and try again.');
                     }
                 } catch (error) {
                     const errorMsg = 
@@ -3263,7 +3512,7 @@ class NewTabHomepage {
                         '  - API service unavailable\n' +
                         '  - Invalid city name\n\n' +
                         'Please check your internet connection and try again.';
-                    alert(errorMsg);
+                    this.notify('API test failed', errorMsg);
                 } finally {
                     testApiBtn.disabled = false;
                     testApiBtn.innerHTML = '<i class="fas fa-vial"></i> Test API';
@@ -3312,10 +3561,140 @@ class NewTabHomepage {
 
     // Helper function to escape HTML and prevent XSS
     escapeHtml(text) {
-        if (!text) return '';
+        if (text == null) return '';
         const div = document.createElement('div');
-        div.textContent = text;
+        div.textContent = String(text);
         return div.innerHTML;
+    }
+
+    // Allow only safe URL schemes for user-provided links (prevents javascript:/data: XSS)
+    sanitizeUrl(url) {
+        const fallback = 'about:blank';
+        if (typeof url !== 'string') return fallback;
+        const trimmed = url.trim();
+        if (!trimmed) return fallback;
+        // Match the scheme (allow //relative)
+        if (trimmed.startsWith('//') || trimmed.startsWith('/') || trimmed.startsWith('#')) return trimmed;
+        const schemeMatch = trimmed.match(/^([a-z][a-z0-9+.\-]*):/i);
+        if (!schemeMatch) return trimmed; // schemeless => relative
+        const scheme = schemeMatch[1].toLowerCase();
+        const allowed = new Set([
+            'http','https','mailto','tel','sms','file','ftp','ftps',
+            // common app protocols
+            'whatsapp','spotify','steam','vscode','obsidian','slack','zoommtg','tg','msteams','ms-settings'
+        ]);
+        if (allowed.has(scheme)) return trimmed;
+        // anything else (javascript:, data:, vbscript:, etc.) is rejected
+        return fallback;
+    }
+
+    // Allow only Font Awesome class tokens (e.g. "fas fa-link")
+    sanitizeIconClass(icon) {
+        const fallback = 'fas fa-link';
+        if (typeof icon !== 'string') return fallback;
+        const tokens = icon.trim().split(/\s+/).filter(t => /^[a-z0-9\-]{1,40}$/i.test(t));
+        if (!tokens.length) return fallback;
+        return tokens.slice(0, 4).join(' ');
+    }
+
+    // -------- Widget visibility (show/hide widgets from Customize menu) --------
+    loadWidgetVisibility() {
+        const defaults = { weather: true, reminders: true, quicklinks: true, clocks: false, calendar: false, notes: false };
+        try {
+            const raw = localStorage.getItem('widgetVisibility');
+            if (!raw) return defaults;
+            const parsed = JSON.parse(raw);
+            return { ...defaults, ...parsed };
+        } catch {
+            return defaults;
+        }
+    }
+
+    saveWidgetVisibility() {
+        try {
+            localStorage.setItem('widgetVisibility', JSON.stringify(this.widgetVisibility));
+        } catch {}
+        // Mirror to profile if logged in
+        if (this.userProfileManager && this.userProfileManager.isUserLoggedIn()) {
+            const user = this.userProfileManager.getCurrentUser();
+            if (user) {
+                user.widgetVisibility = this.widgetVisibility;
+                this.userProfileManager.getDecryptionPassword().then(pw => {
+                    if (pw) this.userProfileManager.saveUserProfile(user.username, user, pw);
+                }).catch(() => {});
+            }
+        }
+    }
+
+    applyWidgetVisibility() {
+        const map = {
+            weather:    document.querySelector('.weather-widget'),
+            reminders:  document.getElementById('reminderWidget'),
+            quicklinks: document.querySelector('.quicklinks-widget'),
+            clocks:     document.getElementById('clocksWidget'),
+            calendar:   document.getElementById('calendarWidget'),
+            notes:      document.getElementById('notesWidget')
+        };
+        const headers = this.loadWidgetHeaderVisibility();
+        Object.entries(map).forEach(([key, el]) => {
+            if (!el) return;
+            const visible = this.widgetVisibility[key] !== false;
+            el.classList.toggle('widget-hidden', !visible);
+            const headerVisible = headers[key] !== false;
+            el.classList.toggle('widget-header-hidden', !headerVisible);
+        });
+        // Notes special-case: hidden header removes the collapse affordance,
+        // so force-uncollapse so the textarea remains usable.
+        const notesEl = map.notes;
+        if (notesEl && headers.notes === false && notesEl.classList.contains('collapsed')) {
+            notesEl.classList.remove('collapsed');
+            try { localStorage.setItem('notesCollapsed', '0'); } catch {}
+            const btn = document.getElementById('notesCollapseBtn');
+            if (btn) {
+                btn.setAttribute('aria-expanded', 'true');
+                btn.title = 'Collapse notes';
+            }
+        }
+    }
+
+    setWidgetVisible(widgetKey, visible) {
+        this.widgetVisibility[widgetKey] = !!visible;
+        this.saveWidgetVisibility();
+        this.applyWidgetVisibility();
+        // Reflect parent state on the visibility row so sub-toggle shows/hides
+        const row = document.querySelector(`.widget-vis-row[data-widget-key="${widgetKey}"]`);
+        if (row) row.classList.toggle('parent-on', !!visible);
+    }
+
+    loadWidgetHeaderVisibility() {
+        const defaults = { weather: true, reminders: true, quicklinks: true, clocks: true, calendar: true, notes: true };
+        try {
+            const raw = localStorage.getItem('widgetHeaderVisibility');
+            if (!raw) return defaults;
+            return { ...defaults, ...JSON.parse(raw) };
+        } catch {
+            return defaults;
+        }
+    }
+
+    saveWidgetHeaderVisibility(map) {
+        try { localStorage.setItem('widgetHeaderVisibility', JSON.stringify(map)); } catch {}
+        if (this.userProfileManager && this.userProfileManager.isUserLoggedIn()) {
+            const user = this.userProfileManager.getCurrentUser();
+            if (user) {
+                user.widgetHeaderVisibility = map;
+                this.userProfileManager.getDecryptionPassword().then(pw => {
+                    if (pw) this.userProfileManager.saveUserProfile(user.username, user, pw);
+                }).catch(() => {});
+            }
+        }
+    }
+
+    setWidgetHeaderVisible(widgetKey, visible) {
+        const map = this.loadWidgetHeaderVisibility();
+        map[widgetKey] = !!visible;
+        this.saveWidgetHeaderVisibility(map);
+        this.applyWidgetVisibility();
     }
 
     // Draggable Widgets System
@@ -3339,12 +3718,23 @@ class NewTabHomepage {
             let xOffset = 0;
             let yOffset = 0;
             
-            handle.addEventListener('mousedown', (e) => {
+            // Bind to widget itself so dragging still works when the header
+            // (which contains the drag handle) is hidden via .widget-header-hidden
+            widget.addEventListener('mousedown', (e) => {
                 // Don't drag if clicking on buttons, inputs, or editable content
                 if (e.target.closest('button') || 
                     e.target.closest('input') || 
+                    e.target.closest('textarea') ||
+                    e.target.closest('select') ||
+                    e.target.closest('a') ||
                     e.target.closest('[contenteditable="true"]') ||
                     e.target.hasAttribute('contenteditable')) {
+                    return;
+                }
+                // If header is visible, only allow dragging from inside the handle.
+                // If header is hidden, allow dragging from the widget body.
+                const headerHidden = widget.classList.contains('widget-header-hidden');
+                if (!headerHidden && !e.target.closest('.widget-drag-handle')) {
                     return;
                 }
                 
@@ -3427,7 +3817,7 @@ class NewTabHomepage {
                                 savedPositions[widgetId].width = size.width;
                                 savedPositions[widgetId].height = size.height;
                                 localStorage.setItem('widgetPositions', JSON.stringify(savedPositions));
-                                console.log('[WIDGET] Updated size only:', widgetId, size);
+                                this.log('[WIDGET] Updated size only:', widgetId, size);
                             }
                         }
                     }, 250);
@@ -3462,14 +3852,14 @@ class NewTabHomepage {
                     if (savedPositions && savedPositions[widgetId]) {
                         const saved = savedPositions[widgetId];
                         
-                        console.log('[RESIZE] Widget:', widgetId, 'Saved:', saved);
+                        this.log('[RESIZE] Widget:', widgetId, 'Saved:', saved);
                         
                         // Use percentage-based positioning for proportional scaling
                         if (saved.xPercent !== undefined && saved.yPercent !== undefined) {
                             const newX = (saved.xPercent / 100) * currentWidth;
                             const newY = (saved.yPercent / 100) * currentHeight;
                             
-                            console.log('[RESIZE] New position:', widgetId, 'X:', newX, 'Y:', newY, 'from %:', saved.xPercent, saved.yPercent);
+                            this.log('[RESIZE] New position:', widgetId, 'X:', newX, 'Y:', newY, 'from %:', saved.xPercent, saved.yPercent);
                             
                             // Apply new position based on percentages
                             widget.style.left = newX + 'px';
@@ -3483,10 +3873,10 @@ class NewTabHomepage {
                                 widget.style.width = newWidth + 'px';
                                 widget.style.height = newHeight + 'px';
                                 
-                                console.log('[RESIZE] New size:', widgetId, 'W:', newWidth, 'H:', newHeight);
+                                this.log('[RESIZE] New size:', widgetId, 'W:', newWidth, 'H:', newHeight);
                             }
                         } else {
-                            console.warn('[RESIZE] No percentage data for:', widgetId);
+                            this.log('[RESIZE] No percentage data for:', widgetId);
                         }
                     }
                 });
@@ -3603,7 +3993,7 @@ class NewTabHomepage {
             positions[widgetId].heightPercent = parseFloat(((size.height / window.innerHeight) * 100).toFixed(2));
         }
         
-        console.log('[WIDGET] Saved position:', widgetId, positions[widgetId]);
+        this.log('[WIDGET] Saved position:', widgetId, positions[widgetId]);
         
         // Save to localStorage
         localStorage.setItem('widgetPositions', JSON.stringify(positions));
@@ -3796,7 +4186,7 @@ class NewTabHomepage {
         const newIcon = iconInput.value.trim();
 
         if (!newName || !newUrl) {
-            alert('Name and URL are required.');
+            this.toast('Name and URL are required.', 'warn');
             return;
         }
 
@@ -3854,22 +4244,25 @@ class NewTabHomepage {
     }
 
     deleteLinkFromManager(index) {
-        if (!confirm('Are you sure you want to delete this link?')) {
-            return;
-        }
+        this.confirm({
+            title: 'Delete link?',
+            message: 'This link will be removed permanently. You can add it again from Customize.',
+            okLabel: 'Delete',
+            danger: true
+        }).then((ok) => {
+            if (!ok) return;
+            const quicklinksContent = document.getElementById('quicklinksContent');
+            const linkContainer = quicklinksContent || document.getElementById('linksGrid');
+            const linkItems = linkContainer.querySelectorAll('.link-item');
 
-        const quicklinksContent = document.getElementById('quicklinksContent');
-        const linkContainer = quicklinksContent || document.getElementById('linksGrid');
-        const linkItems = linkContainer.querySelectorAll('.link-item');
-
-        if (linkItems[index]) {
-            linkItems[index].remove();
-            this.saveContent();
-            this.updateGridLayout();
-            this.populateLinksManager();
-
-            this.log('[CUSTOMIZE] Link deleted at index:', index);
-        }
+            if (linkItems[index]) {
+                linkItems[index].remove();
+                this.saveContent();
+                this.updateGridLayout();
+                this.populateLinksManager();
+                this.log('[CUSTOMIZE] Link deleted at index:', index);
+            }
+        });
     }
 
     // Drag and drop handlers for reordering
@@ -4273,11 +4666,12 @@ class NewTabHomepage {
             return;
         }
 
-        const confirmed = confirm(
-            `WARNING: This will permanently delete all data for username "${username}".\n\n` +
-            `This action cannot be undone!\n\n` +
-            `Are you sure you want to continue?`
-        );
+        const confirmed = await this.confirm({
+            title: 'Delete account data?',
+            message: `This will permanently delete all data for username "${username}". This action cannot be undone.`,
+            okLabel: 'Delete forever',
+            danger: true
+        });
 
         if (!confirmed) return;
 
@@ -4458,15 +4852,19 @@ class NewTabHomepage {
     // Profile Dropdown Methods
     toggleProfileDropdown() {
         const dropdown = document.getElementById('profileDropdown');
+        const btn = document.getElementById('profileBtn');
         if (dropdown) {
-            dropdown.classList.toggle('show');
+            const isOpen = dropdown.classList.toggle('show');
+            if (btn) btn.setAttribute('aria-expanded', String(isOpen));
         }
     }
 
     closeProfileDropdown() {
         const dropdown = document.getElementById('profileDropdown');
+        const btn = document.getElementById('profileBtn');
         if (dropdown) {
             dropdown.classList.remove('show');
+            if (btn) btn.setAttribute('aria-expanded', 'false');
         }
     }
 
@@ -5027,6 +5425,1081 @@ class NewTabHomepage {
         if (currentStoragePath) currentStoragePath.textContent = storageInfo.path;
         if (dataSize) dataSize.textContent = storageInfo.size;
     }
+
+    // ============================================================
+    // MODAL / TOAST / UX HELPERS (refactor away alert/prompt/confirm)
+    // ============================================================
+
+    /**
+     * Wire global UX: prefers-color-scheme detection, click-outside-to-close,
+     * debounced resize reflow, and the `?` keyboard shortcut.
+     */
+    setupGlobalUX() {
+        // 1) prefers-color-scheme: only apply if user has not chosen a theme yet
+        try {
+            const hasTheme = localStorage.getItem('selectedTheme');
+            if (!hasTheme && window.matchMedia) {
+                const mq = window.matchMedia('(prefers-color-scheme: light)');
+                if (mq.matches && typeof this.changeTheme === 'function') {
+                    this.changeTheme('arctic', true);
+                    if (this.themeSelect) this.themeSelect.value = 'arctic';
+                }
+            }
+        } catch (_) { /* no-op */ }
+
+        // 2) Click-outside-to-close for floating panels & dropdowns
+        document.addEventListener('mousedown', (e) => {
+            const target = e.target;
+            // Profile dropdown
+            const profileDropdown = document.querySelector('.profile-dropdown.active');
+            if (profileDropdown && !profileDropdown.contains(target) && !target.closest('.profile-btn')) {
+                profileDropdown.classList.remove('active');
+            }
+            // Search engine dropdown
+            const engineDropdown = document.querySelector('.search-engines.show');
+            if (engineDropdown && !engineDropdown.contains(target) && !target.closest('.search-engine-btn')) {
+                engineDropdown.classList.remove('show');
+            }
+            // City dropdown
+            const cityDropdown = document.getElementById('cityDropdown');
+            if (cityDropdown && cityDropdown.classList.contains('show') && !cityDropdown.contains(target) && !target.closest('.city-search-input')) {
+                cityDropdown.classList.remove('show');
+            }
+        });
+
+        // 3) Debounced resize: keep widgets clamped inside the viewport
+        let resizeTimer = null;
+        window.addEventListener('resize', () => {
+            if (resizeTimer) clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                this.clampWidgetsToViewport();
+            }, 150);
+        }, { passive: true });
+
+        // 4) Keyboard shortcut: `?` opens the shortcuts overlay
+        document.addEventListener('keydown', (e) => {
+            const tag = (e.target && e.target.tagName) || '';
+            const isTyping = tag === 'INPUT' || tag === 'TEXTAREA' || (e.target && e.target.isContentEditable);
+            if (isTyping) return;
+            if (e.key === '?' || (e.shiftKey && e.key === '/')) {
+                e.preventDefault();
+                this.showShortcutsOverlay();
+            }
+        });
+    }
+
+    /** Clamp absolutely-positioned widgets so they stay visible after resize. */
+    clampWidgetsToViewport() {
+        const widgets = document.querySelectorAll('.weather-widget, .reminders-widget, .quicklinks-widget');
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        widgets.forEach((w) => {
+            const rect = w.getBoundingClientRect();
+            let changed = false;
+            let left = rect.left;
+            let top = rect.top;
+            if (rect.right > vw) { left = Math.max(8, vw - rect.width - 8); changed = true; }
+            if (rect.bottom > vh) { top = Math.max(8, vh - rect.height - 8); changed = true; }
+            if (left < 0) { left = 8; changed = true; }
+            if (top < 0) { top = 8; changed = true; }
+            if (changed) {
+                w.style.left = left + 'px';
+                w.style.top = top + 'px';
+                w.style.right = 'auto';
+                w.style.bottom = 'auto';
+            }
+        });
+    }
+
+    /**
+     * Wire live search suggestions (DuckDuckGo autocomplete) onto the main search input.
+     * Endpoint: https://duckduckgo.com/ac/?q=<query>&type=list -> ["query", ["sug1", ...]]
+     */
+    setupSearchSuggestions(input) {
+        const list = document.getElementById('searchSuggestions');
+        if (!list) return;
+
+        let debounceTimer = null;
+        let abortCtrl = null;
+        let activeIndex = -1;
+        let currentItems = [];
+
+        const close = () => {
+            list.classList.remove('show');
+            list.innerHTML = '';
+            input.setAttribute('aria-expanded', 'false');
+            activeIndex = -1;
+            currentItems = [];
+        };
+
+        const render = (items) => {
+            currentItems = items;
+            if (!items.length) { close(); return; }
+            list.innerHTML = items.map((s, i) =>
+                `<div class="search-suggestion" role="option" data-index="${i}" id="suggestion-${i}">` +
+                `<i class="fas fa-search" aria-hidden="true"></i>` +
+                `<span>${this.escapeHtml(s)}</span>` +
+                `</div>`
+            ).join('');
+            list.classList.add('show');
+            input.setAttribute('aria-expanded', 'true');
+            activeIndex = -1;
+        };
+
+        const setActive = (idx) => {
+            const nodes = list.querySelectorAll('.search-suggestion');
+            nodes.forEach(n => n.classList.remove('active'));
+            if (idx >= 0 && idx < nodes.length) {
+                nodes[idx].classList.add('active');
+                input.setAttribute('aria-activedescendant', `suggestion-${idx}`);
+            } else {
+                input.removeAttribute('aria-activedescendant');
+            }
+            activeIndex = idx;
+        };
+
+        const choose = (value) => {
+            input.value = value;
+            close();
+            this.performSearch(this.currentSearchEngine);
+        };
+
+        const fetchSuggestions = (q) => {
+            if (abortCtrl) abortCtrl.abort();
+            abortCtrl = new AbortController();
+            fetch(`https://duckduckgo.com/ac/?q=${encodeURIComponent(q)}&type=list`, {
+                signal: abortCtrl.signal,
+                credentials: 'omit',
+                referrerPolicy: 'no-referrer'
+            })
+                .then(r => r.ok ? r.json() : null)
+                .then(data => {
+                    if (!data) return;
+                    // OpenSearch format: [query, [suggestions]]
+                    let items = [];
+                    if (Array.isArray(data) && Array.isArray(data[1])) {
+                        items = data[1];
+                    } else if (Array.isArray(data)) {
+                        // Fallback: array of {phrase} objects
+                        items = data.map(x => (x && x.phrase) || '').filter(Boolean);
+                    }
+                    render(items.slice(0, 8));
+                })
+                .catch(() => { /* aborted or offline; ignore */ });
+        };
+
+        input.addEventListener('input', () => {
+            const q = input.value.trim();
+            if (debounceTimer) clearTimeout(debounceTimer);
+            if (q.length < 2) { close(); return; }
+            debounceTimer = setTimeout(() => fetchSuggestions(q), 180);
+        });
+
+        input.addEventListener('keydown', (e) => {
+            if (!list.classList.contains('show')) return;
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                setActive(Math.min(activeIndex + 1, currentItems.length - 1));
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                setActive(Math.max(activeIndex - 1, -1));
+            } else if (e.key === 'Enter' && activeIndex >= 0) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                choose(currentItems[activeIndex]);
+            } else if (e.key === 'Escape') {
+                close();
+            } else if (e.key === 'Tab' && activeIndex >= 0) {
+                e.preventDefault();
+                input.value = currentItems[activeIndex];
+            }
+        });
+
+        list.addEventListener('mousedown', (e) => {
+            const item = e.target.closest('.search-suggestion');
+            if (!item) return;
+            e.preventDefault(); // keep focus in input
+            const idx = parseInt(item.dataset.index, 10);
+            if (!isNaN(idx) && currentItems[idx]) choose(currentItems[idx]);
+        });
+
+        input.addEventListener('blur', () => {
+            // Delay so click on suggestion still registers
+            setTimeout(close, 150);
+        });
+
+        input.addEventListener('focus', () => {
+            const q = input.value.trim();
+            if (q.length >= 2) fetchSuggestions(q);
+        });
+    }
+
+    /**
+     * Open the generic link modal (#linkModal). Returns nothing; calls onSave with the form values.
+     * @param {{mode?: 'add'|'edit', name?: string, url?: string, icon?: string, newTab?: boolean, onSave: Function}} opts
+     */
+    openLinkModal(opts) {
+        const modal = document.getElementById('linkModal');
+        if (!modal) return;
+        const title = document.getElementById('linkModalTitle');
+        const nameInput = document.getElementById('linkModalName');
+        const urlInput = document.getElementById('linkModalUrl');
+        const iconInput = document.getElementById('linkModalIcon');
+        const newTabInput = document.getElementById('linkModalNewTab');
+        const saveBtn = document.getElementById('linkModalSave');
+        const cancelBtn = document.getElementById('linkModalCancel');
+        const closeBtn = document.getElementById('closeLinkModal');
+
+        title.textContent = opts.mode === 'edit' ? 'Edit link' : 'Add link';
+        nameInput.value = opts.name || '';
+        urlInput.value = opts.url || '';
+        iconInput.value = opts.icon || '';
+        if (newTabInput) newTabInput.checked = !!opts.newTab;
+
+        modal.classList.add('open');
+        modal.setAttribute('aria-hidden', 'false');
+        setTimeout(() => nameInput.focus(), 50);
+
+        const close = () => {
+            modal.classList.remove('open');
+            modal.setAttribute('aria-hidden', 'true');
+            saveBtn.removeEventListener('click', onSave);
+            cancelBtn.removeEventListener('click', close);
+            if (closeBtn) closeBtn.removeEventListener('click', close);
+            modal.removeEventListener('click', onBackdrop);
+            document.removeEventListener('keydown', onKey);
+        };
+        const onBackdrop = (e) => { if (e.target === modal) close(); };
+        const onKey = (e) => {
+            if (e.key === 'Escape') close();
+            if (e.key === 'Enter' && (e.target === nameInput || e.target === urlInput || e.target === iconInput)) onSave();
+        };
+        const onSave = () => {
+            const name = nameInput.value.trim();
+            const url = urlInput.value.trim();
+            if (!name || !url) {
+                this.toast('Name and URL are required', 'warn');
+                return;
+            }
+            const payload = { name, url, icon: iconInput.value.trim(), newTab: !!(newTabInput && newTabInput.checked) };
+            close();
+            try { opts.onSave(payload); } catch (err) { console.error('linkModal onSave error', err); }
+        };
+
+        saveBtn.addEventListener('click', onSave);
+        cancelBtn.addEventListener('click', close);
+        if (closeBtn) closeBtn.addEventListener('click', close);
+        modal.addEventListener('click', onBackdrop);
+        document.addEventListener('keydown', onKey);
+    }
+
+    /**
+     * Promise-based confirm dialog. Resolves with true/false.
+     * @param {{title?: string, message?: string, okLabel?: string, cancelLabel?: string, danger?: boolean}} opts
+     */
+    confirm(opts = {}) {
+        return new Promise((resolve) => {
+            const modal = document.getElementById('confirmModal');
+            if (!modal) { resolve(window.confirm(opts.message || 'Are you sure?')); return; }
+            const titleEl = document.getElementById('confirmModalTitle');
+            const msgEl = document.getElementById('confirmModalMessage');
+            const okBtn = document.getElementById('confirmModalOk');
+            const cancelBtn = document.getElementById('confirmModalCancel');
+            const closeBtn = document.getElementById('confirmModalClose');
+
+            titleEl.textContent = opts.title || 'Confirm';
+            msgEl.textContent = opts.message || '';
+            okBtn.textContent = opts.okLabel || 'Confirm';
+            cancelBtn.textContent = opts.cancelLabel || 'Cancel';
+            okBtn.classList.toggle('danger', !!opts.danger);
+            // Hide cancel when only OK needed (notify usage)
+            cancelBtn.style.display = opts.hideCancel ? 'none' : '';
+
+            modal.classList.add('open');
+            modal.setAttribute('aria-hidden', 'false');
+            setTimeout(() => okBtn.focus(), 50);
+
+            const finish = (result) => {
+                modal.classList.remove('open');
+                modal.setAttribute('aria-hidden', 'true');
+                okBtn.removeEventListener('click', onOk);
+                cancelBtn.removeEventListener('click', onCancel);
+                if (closeBtn) closeBtn.removeEventListener('click', onCancel);
+                modal.removeEventListener('click', onBackdrop);
+                document.removeEventListener('keydown', onKey);
+                resolve(result);
+            };
+            const onOk = () => finish(true);
+            const onCancel = () => finish(false);
+            const onBackdrop = (e) => { if (e.target === modal) finish(false); };
+            const onKey = (e) => {
+                if (e.key === 'Escape') finish(false);
+                if (e.key === 'Enter') finish(true);
+            };
+
+            okBtn.addEventListener('click', onOk);
+            cancelBtn.addEventListener('click', onCancel);
+            if (closeBtn) closeBtn.addEventListener('click', onCancel);
+            modal.addEventListener('click', onBackdrop);
+            document.addEventListener('keydown', onKey);
+        });
+    }
+
+    /** Show a passive notice (uses confirm modal with only OK). */
+    notify(title, message) {
+        return this.confirm({ title, message, okLabel: 'OK', hideCancel: true });
+    }
+
+    /**
+     * Lightweight in-page toast.
+     * @param {string} message
+     * @param {'info'|'warn'|'error'|'success'} level
+     * @param {number} duration ms
+     * @param {{actionLabel?: string, onAction?: Function}} [options]
+     */
+    toast(message, level = 'info', duration = 3500, options = {}) {
+        let host = document.getElementById('toastHost');
+        if (!host) {
+            host = document.createElement('div');
+            host.id = 'toastHost';
+            host.setAttribute('role', 'status');
+            host.setAttribute('aria-live', 'polite');
+            document.body.appendChild(host);
+        }
+        const el = document.createElement('div');
+        el.className = `toast toast-${level}`;
+        const msg = document.createElement('span');
+        msg.textContent = message;
+        el.appendChild(msg);
+
+        if (options.actionLabel && typeof options.onAction === 'function') {
+            el.classList.add('with-action');
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'toast-action';
+            btn.textContent = options.actionLabel;
+            btn.addEventListener('click', () => {
+                try { options.onAction(); } catch (err) { console.error('toast action error', err); }
+                el.classList.remove('show');
+                setTimeout(() => el.remove(), 250);
+            });
+            el.appendChild(btn);
+        }
+
+        host.appendChild(el);
+        // Force reflow then enter
+        requestAnimationFrame(() => el.classList.add('show'));
+        setTimeout(() => {
+            el.classList.remove('show');
+            el.addEventListener('transitionend', () => el.remove(), { once: true });
+            setTimeout(() => el.remove(), 600);
+        }, duration);
+    }
+
+    /** Open the keyboard shortcuts overlay. */
+    showShortcutsOverlay() {
+        const overlay = document.getElementById('shortcutsOverlay');
+        if (!overlay) return;
+        overlay.classList.add('open');
+        overlay.setAttribute('aria-hidden', 'false');
+        const close = () => {
+            overlay.classList.remove('open');
+            overlay.setAttribute('aria-hidden', 'true');
+            document.removeEventListener('keydown', onKey);
+        };
+        const closeBtn = document.getElementById('shortcutsClose');
+        if (closeBtn) closeBtn.addEventListener('click', close, { once: true });
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); }, { once: true });
+        const onKey = (e) => { if (e.key === 'Escape') close(); };
+        document.addEventListener('keydown', onKey);
+    }
+
+    /** Safe localStorage.setItem with quota guard. */
+    safeSetItem(key, value) {
+        try {
+            localStorage.setItem(key, value);
+            return true;
+        } catch (err) {
+            if (err && (err.name === 'QuotaExceededError' || err.code === 22)) {
+                // Best-effort: drop transient weather caches first
+                Object.keys(localStorage)
+                    .filter(k => k.startsWith('weather_cache_') || k.startsWith('temp_'))
+                    .forEach(k => { try { localStorage.removeItem(k); } catch (_) {} });
+                try {
+                    localStorage.setItem(key, value);
+                    return true;
+                } catch (_) {
+                    this.toast('Storage is full. Some data may not be saved.', 'error');
+                    return false;
+                }
+            }
+            console.error('safeSetItem failed', err);
+            return false;
+        }
+    }
+
+    // ============================================================
+    // NEW FEATURES: world clocks, calendar, notes, command palette,
+    // custom search engines + bangs, bookmark import, master-password
+    // auto-lock, reduced motion. Reminder helpers (snooze, checklist).
+    // ============================================================
+
+    /** Master init for new features. Called once from init(). */
+    initNewFeatures() {
+        // Reduced motion
+        try {
+            const rm = localStorage.getItem('reducedMotion') === '1';
+            document.body.classList.toggle('reduced-motion', rm);
+            const tgl = document.getElementById('reducedMotionToggle');
+            if (tgl) {
+                tgl.checked = rm;
+                tgl.addEventListener('change', (e) => {
+                    const on = e.target.checked;
+                    document.body.classList.toggle('reduced-motion', on);
+                    this.safeSetItem('reducedMotion', on ? '1' : '0');
+                });
+            }
+        } catch (_) { /* no-op */ }
+
+        // Widget visibility toggles for new widgets
+        ['clocks', 'calendar', 'notes'].forEach(key => {
+            const el = document.getElementById('customizeWidget' + key.charAt(0).toUpperCase() + key.slice(1) + 'Toggle');
+            if (el) {
+                el.checked = this.widgetVisibility[key] !== false;
+                el.addEventListener('change', (e) => this.setWidgetVisible(key, e.target.checked));
+            }
+            const row = document.querySelector(`.widget-vis-row[data-widget-key="${key}"]`);
+            if (row) row.classList.toggle('parent-on', this.widgetVisibility[key] !== false);
+        });
+
+        this.initWorldClocks();
+        this.initCalendarWidget();
+        this.initNotesWidget();
+        this.initCommandPalette();
+        this.initCustomSearchEngines();
+        this.initBookmarkImport();
+        this.initAutoLock();
+    }
+
+    // ----- World Clocks -----
+    initWorldClocks() {
+        const list = document.getElementById('clocksList');
+        const addBtn = document.getElementById('addClockBtn');
+        if (!list) return;
+
+        try {
+            this.clocks = JSON.parse(localStorage.getItem('worldClocks') || 'null') || [
+                { tz: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC', label: 'Local' },
+                { tz: 'America/New_York', label: 'New York' },
+                { tz: 'Europe/London', label: 'London' },
+                { tz: 'Asia/Tokyo', label: 'Tokyo' }
+            ];
+        } catch { this.clocks = []; }
+
+        const render = () => {
+            const fmt = (tz) => {
+                try {
+                    return new Intl.DateTimeFormat([], { timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date());
+                } catch { return '--:--'; }
+            };
+            list.innerHTML = this.clocks.map((c, i) => {
+                const display = (c.label && c.label.trim()) || (c.tz ? c.tz.split('/').pop().replace(/_/g, ' ') : 'Local');
+                return `<div class="clock-row" data-i="${i}" title="${this.escapeHtml(c.tz || '')}">
+                    <div class="clock-label"><span class="city">${this.escapeHtml(display)}</span></div>
+                    <span class="clock-time">${fmt(c.tz)}</span>
+                    <button class="clock-remove" data-action="remove-clock" data-i="${i}" title="Remove" aria-label="Remove timezone"><i class="fas fa-times"></i></button>
+                </div>`;
+            }).join('') || `<div class="cmd-empty">No clocks. Click + to add.</div>`;
+        };
+
+        const tick = () => render();
+        render();
+        if (this._clocksTimer) clearInterval(this._clocksTimer);
+        this._clocksTimer = setInterval(tick, 30 * 1000); // updates every 30s
+        this.intervals.clocks = this._clocksTimer;
+
+        if (!list._bound) {
+            list._bound = true;
+            list.addEventListener('click', (e) => {
+                const btn = e.target.closest('button[data-action="remove-clock"]');
+                if (!btn) return;
+                const i = Number(btn.dataset.i);
+                if (Number.isFinite(i)) {
+                    this.clocks.splice(i, 1);
+                    this.safeSetItem('worldClocks', JSON.stringify(this.clocks));
+                    render();
+                }
+            });
+        }
+
+        if (addBtn && !addBtn._bound) {
+            addBtn._bound = true;
+            addBtn.addEventListener('click', async () => {
+                // Use simple prompt-style modal: open linkModal-style flow via openClockModal
+                this.openAddClockModal((tz, label) => {
+                    if (!tz) return;
+                    try {
+                        // Validate timezone by attempting formatting
+                        new Intl.DateTimeFormat([], { timeZone: tz }).format(new Date());
+                    } catch {
+                        this.toast('Unknown timezone: ' + tz, 'error');
+                        return;
+                    }
+                    this.clocks.push({ tz, label: label || tz.split('/').pop().replace(/_/g, ' ') });
+                    this.safeSetItem('worldClocks', JSON.stringify(this.clocks));
+                    render();
+                });
+            });
+        }
+    }
+
+    /** Lightweight inline prompt for adding a timezone (reuses confirm modal styling). */
+    openAddClockModal(onAdd) {
+        const labels = [
+            { tz: 'America/Los_Angeles', label: 'Los Angeles' },
+            { tz: 'America/New_York', label: 'New York' },
+            { tz: 'Europe/London', label: 'London' },
+            { tz: 'Europe/Berlin', label: 'Berlin' },
+            { tz: 'Asia/Dubai', label: 'Dubai' },
+            { tz: 'Asia/Kolkata', label: 'Mumbai' },
+            { tz: 'Asia/Singapore', label: 'Singapore' },
+            { tz: 'Asia/Tokyo', label: 'Tokyo' },
+            { tz: 'Australia/Sydney', label: 'Sydney' }
+        ];
+        const modal = document.getElementById('linkModal');
+        if (!modal) return;
+        const title = document.getElementById('linkModalTitle');
+        const nameInput = document.getElementById('linkModalName');
+        const urlInput = document.getElementById('linkModalUrl');
+        const iconInput = document.getElementById('linkModalIcon');
+        const newTabRow = document.getElementById('linkModalNewTab') ? document.getElementById('linkModalNewTab').closest('.app-modal-checkbox, .reminder-input-group') : null;
+        const saveBtn = document.getElementById('linkModalSave');
+        const cancelBtn = document.getElementById('linkModalCancel');
+        const closeBtn = document.getElementById('closeLinkModal');
+
+        title.innerHTML = '<i class="fas fa-globe" aria-hidden="true"></i> Add timezone';
+        nameInput.placeholder = 'Label (e.g. Mumbai)';
+        nameInput.value = '';
+        urlInput.placeholder = 'IANA timezone (e.g. Asia/Tokyo)';
+        urlInput.value = '';
+        iconInput.placeholder = 'Suggestions: ' + labels.map(l => l.tz).slice(0, 4).join(', ');
+        iconInput.value = '';
+        if (newTabRow) newTabRow.style.display = 'none';
+
+        modal.classList.add('open');
+        modal.setAttribute('aria-hidden', 'false');
+        setTimeout(() => urlInput.focus(), 50);
+
+        const cleanup = () => {
+            modal.classList.remove('open');
+            modal.setAttribute('aria-hidden', 'true');
+            if (newTabRow) newTabRow.style.display = '';
+            saveBtn.removeEventListener('click', onSave);
+            cancelBtn.removeEventListener('click', cleanup);
+            if (closeBtn) closeBtn.removeEventListener('click', cleanup);
+            document.removeEventListener('keydown', onKey);
+            // restore default placeholders
+            nameInput.placeholder = 'e.g. GitHub';
+            urlInput.placeholder = 'https://example.com or whatsapp://';
+            iconInput.placeholder = 'fas fa-link';
+        };
+        const onKey = (e) => { if (e.key === 'Escape') cleanup(); };
+        const onSave = () => {
+            const tz = urlInput.value.trim();
+            const label = nameInput.value.trim();
+            cleanup();
+            onAdd(tz, label);
+        };
+        saveBtn.addEventListener('click', onSave);
+        cancelBtn.addEventListener('click', cleanup);
+        if (closeBtn) closeBtn.addEventListener('click', cleanup);
+        document.addEventListener('keydown', onKey);
+    }
+
+    // ----- Calendar -----
+    initCalendarWidget() {
+        const grid = document.getElementById('calendarGrid');
+        const titleEl = document.getElementById('calendarTitle');
+        const prev = document.getElementById('calendarPrevBtn');
+        const next = document.getElementById('calendarNextBtn');
+        const todayBtn = document.getElementById('calendarTodayBtn');
+        if (!grid || !titleEl) return;
+
+        const now = new Date();
+        this.calendarView = { y: now.getFullYear(), m: now.getMonth() };
+
+        const render = () => {
+            const { y, m } = this.calendarView;
+            titleEl.textContent = new Date(y, m, 1).toLocaleDateString([], { month: 'long', year: 'numeric' });
+            const first = new Date(y, m, 1);
+            const startDay = first.getDay(); // 0=Sun
+            const daysInMonth = new Date(y, m + 1, 0).getDate();
+            const today = new Date();
+            const isThisMonth = today.getFullYear() === y && today.getMonth() === m;
+
+            // Show "Today" jump-back button only when we've navigated away
+            if (todayBtn) todayBtn.hidden = isThisMonth;
+
+            // Reminder dates set for highlight
+            const reminderDates = new Set(
+                (this.reminders || [])
+                    .filter(r => r.date && !r.completed)
+                    .map(r => {
+                        const d = new Date(r.date);
+                        return d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate();
+                    })
+            );
+
+            const cells = [];
+            const dows = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+            dows.forEach(d => cells.push(`<div class="cal-dow">${d}</div>`));
+            // Leading blanks
+            for (let i = 0; i < startDay; i++) cells.push(`<div class="cal-day other-month"></div>`);
+            for (let d = 1; d <= daysInMonth; d++) {
+                const key = y + '-' + m + '-' + d;
+                const cls = ['cal-day'];
+                if (isThisMonth && d === today.getDate()) cls.push('today');
+                if (reminderDates.has(key)) cls.push('has-reminder');
+                cells.push(`<div class="${cls.join(' ')}">${d}</div>`);
+            }
+            grid.innerHTML = cells.join('');
+        };
+
+        const goToToday = () => {
+            const t = new Date();
+            this.calendarView = { y: t.getFullYear(), m: t.getMonth() };
+            render();
+        };
+
+        this._renderCalendar = render;
+        render();
+
+        if (prev) prev.addEventListener('click', () => {
+            this.calendarView.m--;
+            if (this.calendarView.m < 0) { this.calendarView.m = 11; this.calendarView.y--; }
+            render();
+        });
+        if (next) next.addEventListener('click', () => {
+            this.calendarView.m++;
+            if (this.calendarView.m > 11) { this.calendarView.m = 0; this.calendarView.y++; }
+            render();
+        });
+        if (todayBtn) todayBtn.addEventListener('click', goToToday);
+        // Clicking the month label also jumps back to today
+        if (titleEl) {
+            titleEl.style.cursor = 'pointer';
+            titleEl.title = 'Jump to today';
+            titleEl.addEventListener('click', goToToday);
+        }
+    }
+    refreshCalendarHighlights() { if (this._renderCalendar) this._renderCalendar(); }
+
+    // ----- Notes -----
+    initNotesWidget() {
+        const ta = document.getElementById('notesText');
+        const status = document.getElementById('notesStatus');
+        const widget = document.getElementById('notesWidget');
+        const collapseBtn = document.getElementById('notesCollapseBtn');
+        if (!ta) return;
+        try { ta.value = localStorage.getItem('quickNotes') || ''; } catch {}
+
+        // Restore collapsed state
+        if (widget && collapseBtn) {
+            try {
+                const collapsed = localStorage.getItem('notesCollapsed') === '1';
+                widget.classList.toggle('collapsed', collapsed);
+                collapseBtn.setAttribute('aria-expanded', String(!collapsed));
+                collapseBtn.title = collapsed ? 'Expand notes' : 'Collapse notes';
+            } catch {}
+            collapseBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const nowCollapsed = !widget.classList.contains('collapsed');
+                widget.classList.toggle('collapsed', nowCollapsed);
+                collapseBtn.setAttribute('aria-expanded', String(!nowCollapsed));
+                collapseBtn.title = nowCollapsed ? 'Expand notes' : 'Collapse notes';
+                this.safeSetItem('notesCollapsed', nowCollapsed ? '1' : '0');
+            });
+        }
+
+        let saveTimer = null;
+        ta.addEventListener('input', () => {
+            if (status) status.textContent = 'Saving…';
+            if (saveTimer) clearTimeout(saveTimer);
+            saveTimer = setTimeout(() => {
+                this.safeSetItem('quickNotes', ta.value);
+                // Mirror to profile if logged in
+                if (this.userProfileManager && this.userProfileManager.isUserLoggedIn()) {
+                    const user = this.userProfileManager.getCurrentUser();
+                    if (user) {
+                        user.quickNotes = ta.value;
+                        this.userProfileManager.getDecryptionPassword().then(pw => {
+                            if (pw) this.userProfileManager.saveUserProfile(user.username, user, pw);
+                        }).catch(() => {});
+                    }
+                }
+                if (status) {
+                    status.textContent = 'Saved';
+                    setTimeout(() => { if (status.textContent === 'Saved') status.textContent = ''; }, 1500);
+                }
+            }, 500);
+        });
+    }
+
+    // ----- Reminder helpers (snooze + checklist) -----
+    snoozeReminder(id, minutes) {
+        const r = this.reminders.find(x => x.id === id);
+        if (!r) return;
+        const until = new Date(Date.now() + minutes * 60 * 1000);
+        r.snoozedUntil = until.toISOString();
+        r.notified = false;
+        r.date = until.toISOString().slice(0, 16);
+        this.saveReminders();
+        this.renderReminders();
+        this.refreshCalendarHighlights();
+        this.toast(`Snoozed for ${minutes} min`, 'info', 2500);
+    }
+
+    toggleChecklistItem(reminderId, itemId, done) {
+        const r = this.reminders.find(x => x.id === reminderId);
+        if (!r || !Array.isArray(r.checklist)) return;
+        const it = r.checklist.find(x => x.id === itemId);
+        if (!it) return;
+        it.done = !!done;
+        this.saveReminders();
+    }
+
+    // ----- Command palette (Ctrl+K) -----
+    initCommandPalette() {
+        const overlay = document.getElementById('commandPalette');
+        const input = document.getElementById('commandPaletteInput');
+        const list = document.getElementById('commandPaletteList');
+        if (!overlay || !input || !list) return;
+        this._cmdActive = -1;
+        this._cmdItems = [];
+
+        const close = () => {
+            overlay.classList.remove('open');
+            input.value = '';
+            list.innerHTML = '';
+            this._cmdActive = -1;
+        };
+
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+        input.addEventListener('input', () => this.renderCommandPalette());
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') { close(); return; }
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                this._cmdActive = Math.min(this._cmdActive + 1, this._cmdItems.length - 1);
+                this.highlightCmdActive();
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                this._cmdActive = Math.max(this._cmdActive - 1, 0);
+                this.highlightCmdActive();
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                const item = this._cmdItems[this._cmdActive >= 0 ? this._cmdActive : 0];
+                if (item) { close(); item.run(); }
+            }
+        });
+        list.addEventListener('mousedown', (e) => {
+            const row = e.target.closest('.cmd-item');
+            if (!row) return;
+            e.preventDefault();
+            const idx = Number(row.dataset.i);
+            const item = this._cmdItems[idx];
+            if (item) { close(); item.run(); }
+        });
+    }
+
+    openCommandPalette() {
+        const overlay = document.getElementById('commandPalette');
+        const input = document.getElementById('commandPaletteInput');
+        if (!overlay || !input) return;
+        overlay.classList.add('open');
+        setTimeout(() => input.focus(), 30);
+        this.renderCommandPalette();
+    }
+
+    /** Build the command list, filtered by current input. */
+    renderCommandPalette() {
+        const input = document.getElementById('commandPaletteInput');
+        const list = document.getElementById('commandPaletteList');
+        if (!input || !list) return;
+        const q = input.value.trim().toLowerCase();
+
+        const items = [];
+
+        // Themes
+        const themes = ['ocean','sunset','forest','purple','rose','dark','midnight','charcoal','navy','steel','cobalt','arctic','weather','weather-dark'];
+        themes.forEach(t => items.push({
+            kind: 'Theme', icon: 'fa-palette', label: 'Switch theme: ' + t,
+            run: () => { try { this.changeTheme(t, true); this.toast('Theme: ' + t, 'success', 1500); } catch(_) {} }
+        }));
+
+        // Quick links
+        const linkEls = document.querySelectorAll('.quicklinks-content .link-card, #linksGrid .link-card');
+        linkEls.forEach(a => {
+            const name = (a.querySelector('.link-name')?.textContent || a.textContent || '').trim();
+            const href = a.getAttribute('href');
+            if (!name || !href) return;
+            items.push({ kind: 'Link', icon: 'fa-link', label: name, sub: href, run: () => window.open(href, a.target || '_self') });
+        });
+
+        // Reminders (jump to widget + open)
+        (this.reminders || []).slice(0, 20).forEach(r => {
+            items.push({
+                kind: 'Reminder', icon: 'fa-bell', label: r.text,
+                run: () => {
+                    const w = document.getElementById('reminderWidget');
+                    if (w) w.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            });
+        });
+
+        // Actions
+        items.push({ kind: 'Action', icon: 'fa-plus', label: 'New reminder', run: () => this.openReminderModal() });
+        items.push({ kind: 'Action', icon: 'fa-link', label: 'Add quick link', run: () => this.addLink() });
+        items.push({ kind: 'Action', icon: 'fa-cog', label: 'Open settings', run: () => {
+            const btn = document.getElementById('profileMenuBtn') || document.getElementById('profileBtn');
+            if (btn) btn.click();
+        }});
+        items.push({ kind: 'Action', icon: 'fa-keyboard', label: 'Show keyboard shortcuts', run: () => this.showShortcutsOverlay() });
+        items.push({ kind: 'Action', icon: 'fa-lock', label: 'Lock now', run: () => this.lockNow() });
+        items.push({ kind: 'Action', icon: 'fa-eye-slash', label: 'Toggle reduced motion', run: () => {
+            const tgl = document.getElementById('reducedMotionToggle');
+            if (tgl) { tgl.checked = !tgl.checked; tgl.dispatchEvent(new Event('change')); }
+        }});
+
+        const filtered = q ? items.filter(it => (it.label + ' ' + it.kind + ' ' + (it.sub || '')).toLowerCase().includes(q)) : items.slice(0, 30);
+        this._cmdItems = filtered;
+        this._cmdActive = filtered.length ? 0 : -1;
+
+        if (!filtered.length) {
+            list.innerHTML = `<div class="cmd-empty">No matches</div>`;
+            return;
+        }
+        list.innerHTML = filtered.map((it, i) =>
+            `<div class="cmd-item${i === 0 ? ' active' : ''}" role="option" data-i="${i}">
+                <i class="cmd-icon fas ${it.icon}" aria-hidden="true"></i>
+                <span class="cmd-label">${this.escapeHtml(it.label)}${it.sub ? ' <small style="opacity:0.5">' + this.escapeHtml(it.sub) + '</small>' : ''}</span>
+                <span class="cmd-kind">${this.escapeHtml(it.kind)}</span>
+            </div>`
+        ).join('');
+    }
+
+    highlightCmdActive() {
+        const list = document.getElementById('commandPaletteList');
+        if (!list) return;
+        list.querySelectorAll('.cmd-item').forEach((el, i) => {
+            el.classList.toggle('active', i === this._cmdActive);
+            if (i === this._cmdActive) el.scrollIntoView({ block: 'nearest' });
+        });
+    }
+
+    // ----- Custom search engines + bangs -----
+    getCustomEngines() {
+        try { return JSON.parse(localStorage.getItem('customEngines') || '[]') || []; }
+        catch { return []; }
+    }
+    saveCustomEngines(list) {
+        this.safeSetItem('customEngines', JSON.stringify(list));
+    }
+    initCustomSearchEngines() {
+        const listEl = document.getElementById('customEnginesList');
+        const nameI = document.getElementById('newEngineName');
+        const bangI = document.getElementById('newEngineBang');
+        const urlI  = document.getElementById('newEngineUrl');
+        const addBtn = document.getElementById('addCustomEngineBtn');
+        if (!listEl) return;
+
+        const render = () => {
+            const list = this.getCustomEngines();
+            listEl.innerHTML = list.map((e, i) =>
+                `<div class="custom-engine-row" data-i="${i}">
+                    <span class="ce-name">${this.escapeHtml(e.name)}</span>
+                    <span class="ce-bang">${this.escapeHtml(e.bang || '')}</span>
+                    <button data-action="remove-engine" data-i="${i}" title="Remove" aria-label="Remove engine"><i class="fas fa-trash"></i></button>
+                </div>`
+            ).join('') || `<div class="cmd-empty" style="padding:10px;">No custom engines yet.</div>`;
+        };
+        render();
+
+        if (!listEl._bound) {
+            listEl._bound = true;
+            listEl.addEventListener('click', (e) => {
+                const btn = e.target.closest('button[data-action="remove-engine"]');
+                if (!btn) return;
+                const i = Number(btn.dataset.i);
+                const list = this.getCustomEngines();
+                if (Number.isFinite(i) && list[i]) {
+                    list.splice(i, 1);
+                    this.saveCustomEngines(list);
+                    render();
+                }
+            });
+        }
+
+        if (addBtn && !addBtn._bound) {
+            addBtn._bound = true;
+            addBtn.addEventListener('click', () => {
+                const name = (nameI.value || '').trim();
+                let bang = (bangI.value || '').trim().toLowerCase();
+                const url  = (urlI.value || '').trim();
+                if (!name || !url) { this.toast('Name and URL are required', 'warn'); return; }
+                if (!url.includes('%s')) { this.toast('URL must contain %s as the query placeholder', 'warn'); return; }
+                if (!/^https?:\/\//i.test(url)) { this.toast('URL must start with http(s)://', 'warn'); return; }
+                if (bang && !bang.startsWith('!')) bang = '!' + bang;
+                if (bang && !/^![a-z0-9_-]+$/i.test(bang)) { this.toast('Bang must look like !gh', 'warn'); return; }
+                const list = this.getCustomEngines();
+                list.push({ id: 'custom-' + Date.now(), name, bang: bang || null, url });
+                this.saveCustomEngines(list);
+                nameI.value = ''; bangI.value = ''; urlI.value = '';
+                render();
+                this.toast('Engine added', 'success', 2000);
+            });
+        }
+    }
+
+    // ----- Bookmark HTML import -----
+    initBookmarkImport() {
+        const btn = document.getElementById('bookmarkImportBtn');
+        const input = document.getElementById('bookmarkImportInput');
+        const summary = document.getElementById('bookmarkImportSummary');
+        if (!btn || !input) return;
+
+        btn.addEventListener('click', () => input.click());
+        input.addEventListener('change', async () => {
+            const file = input.files && input.files[0];
+            if (!file) return;
+            try {
+                const text = await file.text();
+                const doc = new DOMParser().parseFromString(text, 'text/html');
+                const anchors = Array.from(doc.querySelectorAll('a[href]'));
+                const linksGrid = document.getElementById('linksGrid');
+                const existing = linksGrid ? linksGrid.querySelectorAll('.link-item').length : 0;
+                const slots = Math.max(0, 12 - existing);
+                if (!slots) {
+                    if (summary) summary.textContent = 'Already at the 12-link cap. Remove some links first.';
+                    input.value = '';
+                    return;
+                }
+                let added = 0;
+                for (const a of anchors) {
+                    if (added >= slots) break;
+                    const href = a.getAttribute('href');
+                    const name = (a.textContent || '').trim();
+                    if (!href || !/^https?:\/\//i.test(href) || !name) continue;
+                    this.createAndAddLinkElement(linksGrid, href, name, 'fas fa-bookmark');
+                    added++;
+                }
+                if (added) {
+                    this.updateGridLayout();
+                    this.saveContent();
+                    this.populateLinksManager();
+                }
+                if (summary) summary.textContent = `Imported ${added} bookmark${added === 1 ? '' : 's'} (skipped ${anchors.length - added}).`;
+                this.toast(`Imported ${added} bookmark${added === 1 ? '' : 's'}`, added ? 'success' : 'warn');
+            } catch (err) {
+                console.error('Bookmark import failed', err);
+                this.toast('Could not parse that file', 'error');
+            } finally {
+                input.value = '';
+            }
+        });
+    }
+
+    // ----- Master-password auto-lock -----
+    initAutoLock() {
+        const sel = document.getElementById('autoLockSelect');
+        const overlay = document.getElementById('lockOverlay');
+        const pwInput = document.getElementById('lockPasswordInput');
+        const unlockBtn = document.getElementById('lockUnlockBtn');
+        const signOutBtn = document.getElementById('lockSignOutBtn');
+        const errorEl = document.getElementById('lockError');
+        if (!overlay) return;
+
+        // Load saved interval
+        try {
+            const saved = parseInt(localStorage.getItem('autoLockMs') || '0', 10);
+            this._autoLockMs = Number.isFinite(saved) ? saved : 0;
+            if (sel) sel.value = String(this._autoLockMs);
+        } catch { this._autoLockMs = 0; }
+
+        if (sel && !sel._bound) {
+            sel._bound = true;
+            sel.addEventListener('change', (e) => {
+                const v = parseInt(e.target.value, 10) || 0;
+                this._autoLockMs = v;
+                this.safeSetItem('autoLockMs', String(v));
+                this.armAutoLock();
+            });
+        }
+
+        const resetTimer = () => {
+            if (!this._autoLockMs) return;
+            if (!this.userProfileManager || !this.userProfileManager.isUserLoggedIn()) return;
+            if (this._autoLockTimer) clearTimeout(this._autoLockTimer);
+            this._autoLockTimer = setTimeout(() => this.lockNow(), this._autoLockMs);
+        };
+        this.armAutoLock = resetTimer;
+
+        ['mousemove', 'keydown', 'pointerdown', 'wheel', 'touchstart'].forEach(evt => {
+            window.addEventListener(evt, resetTimer, { passive: true });
+        });
+        resetTimer();
+
+        const tryUnlock = async () => {
+            errorEl.textContent = '';
+            const pw = pwInput.value;
+            if (!pw) { errorEl.textContent = 'Enter your password.'; return; }
+            const upm = this.userProfileManager;
+            if (!upm || !upm.isUserLoggedIn()) { this.unlockNow(); return; }
+            try {
+                const user = upm.getCurrentUser();
+                const username = user && user.username;
+                if (!username) { this.unlockNow(); return; }
+                // Re-decrypt the stored profile to validate the password
+                const profile = await upm.loadUserProfile(username, pw);
+                if (profile) {
+                    pwInput.value = '';
+                    this.unlockNow();
+                } else {
+                    errorEl.textContent = 'Incorrect password.';
+                }
+            } catch (err) {
+                console.error('unlock failed', err);
+                errorEl.textContent = 'Incorrect password.';
+            }
+        };
+
+        if (unlockBtn) unlockBtn.addEventListener('click', tryUnlock);
+        if (pwInput) pwInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') tryUnlock(); });
+        if (signOutBtn) signOutBtn.addEventListener('click', () => {
+            try {
+                if (this.userProfileManager && typeof this.userProfileManager.logoutUser === 'function') {
+                    this.userProfileManager.logoutUser(true);
+                }
+            } catch (_) {}
+            this.unlockNow();
+            location.reload();
+        });
+    }
+
+    lockNow() {
+        if (!this.userProfileManager || !this.userProfileManager.isUserLoggedIn()) return;
+        const overlay = document.getElementById('lockOverlay');
+        if (!overlay) return;
+        overlay.classList.add('open');
+        const pw = document.getElementById('lockPasswordInput');
+        if (pw) { pw.value = ''; setTimeout(() => pw.focus(), 50); }
+        if (this._autoLockTimer) clearTimeout(this._autoLockTimer);
+    }
+    unlockNow() {
+        const overlay = document.getElementById('lockOverlay');
+        if (overlay) overlay.classList.remove('open');
+        if (typeof this.armAutoLock === 'function') this.armAutoLock();
+    }
 }
 
 // Animation utilities
@@ -5114,7 +6587,7 @@ document.addEventListener('DOMContentLoaded', function() {
     try {
         newTabHomepage = new NewTabHomepage();
         window.newTabHomepage = newTabHomepage; // Make it globally accessible
-        
+
         // Set initial grid layout based on existing links
         setTimeout(() => {
             newTabHomepage.updateGridLayout();
@@ -5122,15 +6595,22 @@ document.addEventListener('DOMContentLoaded', function() {
     } catch (error) {
         console.error('Error initializing homepage:', error);
     }
-    
+
     // Initialize animations
     AnimationUtils.fadeInOnScroll();
-    
+
     // Initialize theme system
     ThemeUtils.initColorTheme();
-    
+
     // Add some interactive features
     addInteractiveFeatures();
+
+    // Register service worker (PWA / offline shell cache)
+    if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('sw.js').catch(() => { /* offline only is fine */ });
+        });
+    }
 });
 
 function addInteractiveFeatures() {

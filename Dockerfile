@@ -1,24 +1,35 @@
 # Use official Node.js LTS image
-FROM node:20-alpine
+FROM node:20-alpine AS runtime
 
-# Set working directory
+ENV NODE_ENV=production \
+    PORT=3443
+
+# Create app directory and a non-root user/group
 WORKDIR /app
+RUN addgroup -S nodeapp && adduser -S nodeapp -G nodeapp
 
-# Copy application files
-COPY app/ ./app/
-COPY ssl/ ./ssl/
-COPY server.js ./
-COPY package.json ./
+# Copy package manifests first for better Docker layer caching
+COPY --chown=nodeapp:nodeapp package*.json ./
 
-# Install dependencies if needed
-RUN npm install --production 2>/dev/null || true
+# Install only production dependencies (deterministic if lockfile exists)
+RUN if [ -f package-lock.json ]; then npm ci --omit=dev; else npm install --omit=dev; fi \
+    && npm cache clean --force
 
-# Expose HTTPS port
+# Copy application sources
+COPY --chown=nodeapp:nodeapp app/ ./app/
+COPY --chown=nodeapp:nodeapp server.js ./
+
+# SSL certificates should be mounted at runtime, NOT baked into the image.
+# Example: docker run -v $(pwd)/ssl:/app/ssl:ro ...
+VOLUME ["/app/ssl"]
+
 EXPOSE 3443
 
-# Health check
+# Health check (uses HEAD; tolerates self-signed certs in dev)
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "const https = require('https'); const options = { rejectUnauthorized: false }; https.get('https://localhost:3443', options, (res) => { process.exit(res.statusCode === 200 ? 0 : 1); }).on('error', () => process.exit(1));" || exit 1
+    CMD node -e "const m=require('https');const r=m.request({host:'127.0.0.1',port:process.env.PORT||3443,path:'/',method:'HEAD',rejectUnauthorized:false},res=>process.exit(res.statusCode<500?0:1));r.on('error',()=>process.exit(1));r.end();"
 
-# Run the server
+# Drop privileges
+USER nodeapp
+
 CMD ["node", "server.js"]

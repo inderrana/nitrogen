@@ -34,7 +34,7 @@ class UserProfileManager {
         this.syncEnabled = false;
         this.DEBUG = false; // Set to true for debugging
         this.lastActivityTime = Date.now(); // For session timeout
-        this.SESSION_TIMEOUT = 365 * 24 * 60 * 60 * 1000; // 1 year idle timeout
+        this.SESSION_TIMEOUT = 7 * 24 * 60 * 60 * 1000; // 7 day idle timeout
         
         // Profile data structure
         this.defaultProfile = {
@@ -54,7 +54,7 @@ class UserProfileManager {
                 weatherLocation: '',
                 searchEngine: 'startpage',
                 links: [],
-                theme: 'ocean'
+                theme: 'midnight'
             },
             reminders: [],
             lastSync: null,

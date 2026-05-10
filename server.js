@@ -2,59 +2,113 @@ const https = require('https');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const port = process.env.PORT || 3443;
 const isVercel = process.env.VERCEL || process.env.NOW_REGION;
+const isProd = process.env.NODE_ENV === 'production' || isVercel;
 
 const mimeTypes = {
-    '.html': 'text/html',
-    '.css': 'text/css',
-    '.js': 'application/javascript',
-    '.json': 'application/json',
-    '.png': 'image/png',
-    '.jpg': 'image/jpeg',
-    '.gif': 'image/gif',
-    '.svg': 'image/svg+xml',
-    '.ico': 'image/x-icon'
+    '.html': 'text/html; charset=utf-8',
+    '.css':  'text/css; charset=utf-8',
+    '.js':   'application/javascript; charset=utf-8',
+    '.json': 'application/json; charset=utf-8',
+    '.png':  'image/png',
+    '.jpg':  'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.gif':  'image/gif',
+    '.svg':  'image/svg+xml',
+    '.ico':  'image/x-icon',
+    '.webp': 'image/webp',
+    '.woff': 'font/woff',
+    '.woff2':'font/woff2',
+    '.txt':  'text/plain; charset=utf-8',
+    '.map':  'application/json; charset=utf-8',
+    '.webmanifest': 'application/manifest+json; charset=utf-8'
 };
+
+// Long cache for static assets, no-cache for HTML so updates are picked up immediately
+const cacheControlFor = (ext) => {
+    if (ext === '.html' || ext === '') return 'no-cache, must-revalidate';
+    if (ext === '.json' || ext === '.map') return 'no-cache, must-revalidate';
+    // Static assets: 1h fresh + 1d SWR (works well for an unhashed app)
+    return 'public, max-age=3600, stale-while-revalidate=86400';
+};
+
+// CSP: no wildcard, no inline scripts. Inline styles still allowed for compatibility.
+// Connect-src includes Open-Meteo (used by script.js) and OpenWeatherMap (used optionally).
+const CSP = [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'self'",
+    "object-src 'none'",
+    "img-src 'self' data: https:",
+    "font-src 'self' data: https://cdnjs.cloudflare.com",
+    "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com",
+    "style-src-elem 'self' 'unsafe-inline' https://cdnjs.cloudflare.com",
+    "script-src 'self'",
+    "connect-src 'self' https://api.open-meteo.com https://geocoding-api.open-meteo.com https://api.openweathermap.org",
+    "manifest-src 'self'"
+].join('; ');
+
+const setCommonSecurityHeaders = (res, isHttps) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Permissions-Policy', 'geolocation=(self), microphone=(), camera=(), payment=(), usb=()');
+    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+    res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+    res.setHeader('Content-Security-Policy', CSP);
+    if (isHttps) {
+        res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    }
+};
+
+// Resolve once for path-traversal checks
+const APP_DIR = path.resolve(__dirname, 'app');
 
 // Request handler function
 const handleRequest = (req, res) => {
-    console.log(`➤ ${req.method} ${req.url}`);
-    
-    // CORS headers - allow credentials (cookies) to work
-    const origin = req.headers.origin || `https://localhost:${port}`;
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Cookie');
-    
-    // Handle preflight requests
-    if (req.method === 'OPTIONS') {
-        res.writeHead(204);
-        res.end();
+    const isHttps = !!(req.socket && req.socket.encrypted) || !!req.headers['x-forwarded-proto']?.includes('https');
+    if (!isProd) console.log(`> ${req.method} ${req.url}`);
+
+    setCommonSecurityHeaders(res, isHttps);
+
+    // Reject anything that isn't a safe read method
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+        res.writeHead(405, { 'Allow': 'GET, HEAD' });
+        res.end('Method Not Allowed');
         return;
     }
-    
-    // Security headers
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
-    res.setHeader('X-XSS-Protection', '1; mode=block');
-    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-    // Allow Font Awesome from CDN and local resources
-    res.setHeader('Content-Security-Policy', "default-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; font-src 'self' data: https://cdnjs.cloudflare.com; img-src 'self' data: https:; connect-src 'self' https://api.open-meteo.com https://geocoding-api.open-meteo.com;");;
 
-    let filePath = req.url;
-    if (filePath === '/') {
-        filePath = '/index.html';
+    // Parse + decode URL safely; strip query string and hash
+    let urlPath;
+    try {
+        urlPath = decodeURIComponent((req.url || '/').split('?')[0].split('#')[0]);
+    } catch {
+        res.writeHead(400);
+        res.end('Bad Request');
+        return;
+    }
+    if (urlPath === '/' || urlPath === '') urlPath = '/index.html';
+
+    // Lightweight liveness probe (used by uptime checks; never reads disk)
+    if (urlPath === '/healthz') {
+        res.writeHead(204, { 'Cache-Control': 'no-store' });
+        return res.end();
     }
 
-    // Build safe path within app directory
-    filePath = path.join(__dirname, 'app', filePath);
-    
-    // Ensure the path is within the app directory
-    const appDir = path.join(__dirname, 'app');
-    if (!filePath.startsWith(appDir)) {
+    // Reject NUL bytes and Windows path separators
+    if (urlPath.indexOf('\0') !== -1 || urlPath.indexOf('\\') !== -1) {
+        res.writeHead(400);
+        res.end('Bad Request');
+        return;
+    }
+
+    // Resolve final path and verify containment inside APP_DIR
+    const filePath = path.resolve(APP_DIR, '.' + urlPath);
+    if (filePath !== APP_DIR && !filePath.startsWith(APP_DIR + path.sep)) {
         res.writeHead(403);
         res.end('Forbidden');
         return;
@@ -63,25 +117,41 @@ const handleRequest = (req, res) => {
     const extname = String(path.extname(filePath)).toLowerCase();
     const mimeType = mimeTypes[extname] || 'application/octet-stream';
 
-    fs.readFile(filePath, (error, content) => {
-        if (error) {
-            if (error.code === 'ENOENT') {
-                console.error(`❌ 404 Not Found: ${filePath}`);
-                res.writeHead(404);
-                res.end('File not found');
-            } else {
-                console.error(`❌ File read error (${req.url}): ${error.code}`);
-                res.writeHead(500);
-                res.end('Server error: ' + error.code);
-            }
-        } else {
-            console.log(`✓ GET ${req.url} (${mimeType}) - ${content.length} bytes`);
-            res.writeHead(200, { 
-                'Content-Type': mimeType,
-                'Content-Length': content.length
-            });
-            res.end(content, 'utf-8');
+    fs.stat(filePath, (statErr, stat) => {
+        if (statErr || !stat.isFile()) {
+            res.writeHead(404);
+            res.end('Not Found');
+            return;
         }
+        // Build a weak ETag from size + mtime — enables 304s
+        const etag = 'W/"' + crypto.createHash('sha1')
+            .update(stat.size + '-' + stat.mtimeMs).digest('hex').slice(0, 16) + '"';
+
+        if (req.headers['if-none-match'] === etag) {
+            res.writeHead(304, {
+                'ETag': etag,
+                'Cache-Control': cacheControlFor(extname)
+            });
+            return res.end();
+        }
+
+        const headers = {
+            'Content-Type': mimeType,
+            'Content-Length': stat.size,
+            'Cache-Control': cacheControlFor(extname),
+            'ETag': etag,
+            'Last-Modified': stat.mtime.toUTCString()
+        };
+
+        if (req.method === 'HEAD') {
+            res.writeHead(200, headers);
+            return res.end();
+        }
+
+        res.writeHead(200, headers);
+        const stream = fs.createReadStream(filePath);
+        stream.on('error', () => { try { res.destroy(); } catch {} });
+        stream.pipe(res);
     });
 };
 

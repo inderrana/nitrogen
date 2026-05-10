@@ -2,25 +2,32 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#1e3c72">
+    <meta name="color-scheme" content="dark light">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="description" content="Nitrogen — minimal, encrypted personal start page.">
     <title>Nitrogen</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="dns-prefetch" href="https://api.openweathermap.org">
     <link rel="stylesheet" href="style.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.1/css/all.min.css" rel="stylesheet" integrity="sha512-5Hs3dF2AEPkpNAR7UiOHba+lRSJNeM2ECkwxUIxC1Q/FLycGTbNapWXB4tP889k5T5Ju8fs4b1P5z/iB4nMfSQ==" crossorigin="anonymous">
-    <script src="crypto-utils.js"></script>
-    <script src="user-profile.js"></script>
+    <noscript><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.1/css/all.min.css" rel="stylesheet" integrity="sha512-5Hs3dF2AEPkpNAR7UiOHba+lRSJNeM2ECkwxUIxC1Q/FLycGTbNapWXB4tP889k5T5Ju8fs4b1P5z/iB4nMfSQ==" crossorigin="anonymous"></noscript>
+    <script src="crypto-utils.js" defer></script>
+    <script src="user-profile.js" defer></script>
 </head>
 <body>
     <div class="container">
         <!-- User Profile Dropdown -->
         <div class="top-controls">
             <div class="profile-dropdown">
-                <button id="profileBtn" class="profile-btn" title="User Profile">
-                    <i class="fas fa-user"></i>
-                    <span id="profileIndicator" class="profile-indicator offline"></span>
+                <button id="profileBtn" class="profile-btn" title="User Profile" aria-label="User profile" aria-haspopup="menu" aria-expanded="false">
+                    <i class="fas fa-user" aria-hidden="true"></i>
+                    <span id="profileIndicator" class="profile-indicator offline" aria-hidden="true"></span>
                 </button>
                 <div class="profile-dropdown-menu" id="profileDropdown">
                     <div class="dropdown-item" id="profileMenuBtn">
@@ -44,10 +51,12 @@
         </div>
 
         <!-- Search Section -->
-        <div class="search-section">
+        <div class="search-section" role="search">
             <div class="search-container">
                 <div class="search-box">
-                    <input type="text" id="searchInput" placeholder="Search Startpage" autofocus autocomplete="off">
+                    <label for="searchInput" class="sr-only">Search</label>
+                    <input type="search" id="searchInput" placeholder="Search Startpage" autofocus autocomplete="off" enterkeyhint="search" inputmode="search" spellcheck="false" autocapitalize="off" aria-autocomplete="list" aria-controls="searchSuggestions" aria-expanded="false">
+                    <div class="search-suggestions" id="searchSuggestions" role="listbox" aria-label="Search suggestions"></div>
                 </div>
                 <div class="search-engine-tabs">
                     <button class="search-tab active" data-engine="startpage">
@@ -74,32 +83,32 @@
         <div class="quick-links">
             <div class="links-grid" id="linksGrid">
                 <div class="link-item">
-                    <a href="https://gmail.com" target="_blank" class="link-card">
-                        <i class="fas fa-envelope link-icon"></i>
+                    <a href="https://gmail.com" target="_blank" rel="noopener noreferrer" class="link-card">
+                        <i class="fas fa-envelope link-icon" aria-hidden="true"></i>
                         <span class="link-name editable" contenteditable="false" data-placeholder="Link Name">Gmail</span>
                     </a>
-                    <button class="remove-btn" style="display: none;">×</button>
+                    <button class="remove-btn" style="display: none;" aria-label="Remove Gmail link">×</button>
                 </div>
                 <div class="link-item">
-                    <a href="https://outlook.live.com" target="_blank" class="link-card">
-                        <i class="fas fa-mail-bulk link-icon"></i>
+                    <a href="https://outlook.live.com" target="_blank" rel="noopener noreferrer" class="link-card">
+                        <i class="fas fa-mail-bulk link-icon" aria-hidden="true"></i>
                         <span class="link-name editable" contenteditable="false" data-placeholder="Link Name">Hotmail</span>
                     </a>
-                    <button class="remove-btn" style="display: none;">×</button>
+                    <button class="remove-btn" style="display: none;" aria-label="Remove Hotmail link">×</button>
                 </div>
                 <div class="link-item">
-                    <a href="https://linkedin.com" target="_blank" class="link-card">
-                        <i class="fab fa-linkedin link-icon"></i>
+                    <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" class="link-card">
+                        <i class="fab fa-linkedin link-icon" aria-hidden="true"></i>
                         <span class="link-name editable" contenteditable="false" data-placeholder="Link Name">LinkedIn</span>
                     </a>
-                    <button class="remove-btn" style="display: none;">×</button>
+                    <button class="remove-btn" style="display: none;" aria-label="Remove LinkedIn link">×</button>
                 </div>
                 <div class="link-item">
-                    <a href="https://github.com" target="_blank" class="link-card">
-                        <i class="fab fa-github link-icon"></i>
+                    <a href="https://github.com" target="_blank" rel="noopener noreferrer" class="link-card">
+                        <i class="fab fa-github link-icon" aria-hidden="true"></i>
                         <span class="link-name editable" contenteditable="false" data-placeholder="Link Name">GitHub</span>
                     </a>
-                    <button class="remove-btn" style="display: none;">×</button>
+                    <button class="remove-btn" style="display: none;" aria-label="Remove GitHub link">×</button>
                 </div>
             </div>
         </div>
@@ -158,9 +167,39 @@
         </div>
     </div>
 
-    <!-- Add Reminder Modal -->
-    <div class="reminder-modal" id="reminderModal">
-        <div class="reminder-modal-content">
+        <!-- World Clocks Widget -->
+        <div class="clocks-widget draggable-widget" id="clocksWidget" data-widget="clocks">
+            <div class="clocks-header widget-drag-handle">
+                <h4><i class="fas fa-globe"></i> World Clocks</h4>
+                <button class="clocks-add-btn" id="addClockBtn" title="Add timezone" aria-label="Add timezone">
+                    <i class="fas fa-plus"></i>
+                </button>
+            </div>
+            <div class="clocks-list" id="clocksList"></div>
+        </div>
+
+        <!-- Calendar Widget -->
+        <div class="calendar-widget draggable-widget" id="calendarWidget" data-widget="calendar">
+            <div class="calendar-header widget-drag-handle">
+                <button class="calendar-nav-btn" id="calendarPrevBtn" aria-label="Previous month"><i class="fas fa-chevron-left"></i></button>
+                <h4 id="calendarTitle">Month YYYY</h4>
+                <button class="calendar-today-btn" id="calendarTodayBtn" title="Jump to today" aria-label="Jump to today" hidden>Today</button>
+                <button class="calendar-nav-btn" id="calendarNextBtn" aria-label="Next month"><i class="fas fa-chevron-right"></i></button>
+            </div>
+            <div class="calendar-grid" id="calendarGrid"></div>
+        </div>
+
+        <!-- Notes Widget -->
+        <div class="notes-widget draggable-widget" id="notesWidget" data-widget="notes">
+            <div class="notes-header widget-drag-handle">
+                <h4><i class="fas fa-sticky-note"></i> Notes</h4>
+                <span class="notes-status" id="notesStatus" aria-live="polite"></span>
+                <button class="notes-collapse-btn" id="notesCollapseBtn" title="Collapse notes" aria-label="Collapse notes" aria-expanded="true">
+                    <i class="fas fa-chevron-up" aria-hidden="true"></i>
+                </button>
+            </div>
+            <textarea class="notes-text" id="notesText" placeholder="Quick notes — auto-saved" spellcheck="true"></textarea>
+        </div>
             <div class="reminder-modal-header">
                 <h3><i class="fas fa-plus"></i> Add Reminder</h3>
                 <button class="reminder-close-btn" id="closeReminderModal">
@@ -183,6 +222,19 @@
                 <div class="reminder-input-group">
                     <label>Due Date (Optional)</label>
                     <input type="datetime-local" id="reminderDate" class="reminder-input">
+                </div>
+                <div class="reminder-input-group">
+                    <label>Repeat</label>
+                    <select id="reminderRecurrence" class="reminder-select">
+                        <option value="none" selected>Never</option>
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                    </select>
+                </div>
+                <div class="reminder-input-group">
+                    <label>Checklist (one item per line, optional)</label>
+                    <textarea id="reminderChecklist" class="reminder-input" rows="3" placeholder="Buy milk&#10;Call dentist"></textarea>
                 </div>
             </div>
             <div class="reminder-modal-footer">
@@ -425,7 +477,7 @@
             <div class="profile-tab-content" data-content="customize">
                 <div class="profile-settings">
                     <h5><i class="fas fa-palette"></i> Appearance</h5>
-                    
+
                     <div class="setting-item">
                         <label>Theme</label>
                         <select class="profile-select" id="customizeThemeSelect">
@@ -445,12 +497,12 @@
                             <option value="weather-dark">Weather Dynamic (Dark)</option>
                         </select>
                     </div>
-                    
-                    <!-- Collapsible Weather Effects Section -->
+
+                    <!-- Collapsible Effects Section -->
                     <div class="collapsible-section">
                         <div class="collapsible-header" data-section="weatherEffects">
                             <i class="fas fa-cloud-rain"></i>
-                            <span>Weather Effects</span>
+                            <span>Effects</span>
                             <i class="fas fa-chevron-down collapse-icon"></i>
                         </div>
                         <div class="collapsible-content" id="weatherEffectsContent">
@@ -463,7 +515,6 @@
                                     </label>
                                 </label>
                             </div>
-                            
                             <div class="setting-item compact">
                                 <label class="toggle-label">
                                     <span>Weather Elements</span>
@@ -475,12 +526,131 @@
                             </div>
                         </div>
                     </div>
-                    
-                    <!-- Collapsible Widget Frost Section -->
+                </div>
+
+                <div class="profile-settings">
+                    <h5><i class="fas fa-th-large"></i> Widgets</h5>
+
+                    <!-- Collapsible: Visibility -->
+                    <div class="collapsible-section">
+                        <div class="collapsible-header" data-section="widgetVisibility">
+                            <i class="fas fa-eye"></i>
+                            <span>Visibility</span>
+                            <i class="fas fa-chevron-down collapse-icon"></i>
+                        </div>
+                        <div class="collapsible-content" id="widgetVisibilityContent">
+                            <div class="widget-vis-row" data-widget-key="weather">
+                                <div class="setting-item compact widget-vis-item">
+                                    <span class="widget-vis-name">Weather</span>
+                                    <div class="widget-vis-toggles">
+                                        <label class="toggle-switch" title="Show widget" aria-label="Show widget">
+                                            <input type="checkbox" id="customizeWidgetWeatherToggle" checked>
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="widget-vis-row" data-widget-key="reminders">
+                                <div class="setting-item compact widget-vis-item">
+                                    <span class="widget-vis-name">Reminders</span>
+                                    <div class="widget-vis-toggles">
+                                        <span class="widget-header-toggle-wrap widget-header-toggle">
+                                            <span class="header-toggle-label">Header</span>
+                                            <label class="toggle-switch mini" title="Show header" aria-label="Show header">
+                                                <input type="checkbox" data-widget-header="reminders" checked>
+                                                <span class="toggle-slider"></span>
+                                            </label>
+                                        </span>
+                                        <label class="toggle-switch" title="Show widget" aria-label="Show widget">
+                                            <input type="checkbox" id="customizeWidgetRemindersToggle" checked>
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="widget-vis-row" data-widget-key="quicklinks">
+                                <div class="setting-item compact widget-vis-item">
+                                    <span class="widget-vis-name">Quick Links</span>
+                                    <div class="widget-vis-toggles">
+                                        <span class="widget-header-toggle-wrap widget-header-toggle">
+                                            <span class="header-toggle-label">Header</span>
+                                            <label class="toggle-switch mini" title="Show header" aria-label="Show header">
+                                                <input type="checkbox" data-widget-header="quicklinks" checked>
+                                                <span class="toggle-slider"></span>
+                                            </label>
+                                        </span>
+                                        <label class="toggle-switch" title="Show widget" aria-label="Show widget">
+                                            <input type="checkbox" id="customizeWidgetQuicklinksToggle" checked>
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="widget-vis-row" data-widget-key="clocks">
+                                <div class="setting-item compact widget-vis-item">
+                                    <span class="widget-vis-name">World Clocks</span>
+                                    <div class="widget-vis-toggles">
+                                        <span class="widget-header-toggle-wrap widget-header-toggle">
+                                            <span class="header-toggle-label">Header</span>
+                                            <label class="toggle-switch mini" title="Show header" aria-label="Show header">
+                                                <input type="checkbox" data-widget-header="clocks" checked>
+                                                <span class="toggle-slider"></span>
+                                            </label>
+                                        </span>
+                                        <label class="toggle-switch" title="Show widget" aria-label="Show widget">
+                                            <input type="checkbox" id="customizeWidgetClocksToggle">
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="widget-vis-row" data-widget-key="calendar">
+                                <div class="setting-item compact widget-vis-item">
+                                    <span class="widget-vis-name">Calendar</span>
+                                    <div class="widget-vis-toggles">
+                                        <span class="widget-header-toggle-wrap widget-header-toggle">
+                                            <span class="header-toggle-label">Header</span>
+                                            <label class="toggle-switch mini" title="Show header" aria-label="Show header">
+                                                <input type="checkbox" data-widget-header="calendar" checked>
+                                                <span class="toggle-slider"></span>
+                                            </label>
+                                        </span>
+                                        <label class="toggle-switch" title="Show widget" aria-label="Show widget">
+                                            <input type="checkbox" id="customizeWidgetCalendarToggle">
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="widget-vis-row" data-widget-key="notes">
+                                <div class="setting-item compact widget-vis-item">
+                                    <span class="widget-vis-name">Notes</span>
+                                    <div class="widget-vis-toggles">
+                                        <span class="widget-header-toggle-wrap widget-header-toggle">
+                                            <span class="header-toggle-label">Header</span>
+                                            <label class="toggle-switch mini" title="Show header" aria-label="Show header">
+                                                <input type="checkbox" data-widget-header="notes" checked>
+                                                <span class="toggle-slider"></span>
+                                            </label>
+                                        </span>
+                                        <label class="toggle-switch" title="Show widget" aria-label="Show widget">
+                                            <input type="checkbox" id="customizeWidgetNotesToggle">
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            <button class="profile-btn secondary full-width" id="customizeResetWidgetsBtn" style="margin-top: 0.75rem;">
+                                <i class="fas fa-undo"></i> Reset widget positions
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Collapsible: Frost -->
                     <div class="collapsible-section">
                         <div class="collapsible-header" data-section="widgetFrost">
                             <i class="fas fa-snowflake"></i>
-                            <span>Widget Frost</span>
+                            <span>Frost</span>
                             <i class="fas fa-chevron-down collapse-icon"></i>
                         </div>
                         <div class="collapsible-content" id="widgetFrostContent">
@@ -493,7 +663,6 @@
                                     </label>
                                 </label>
                             </div>
-                            
                             <div class="setting-item compact">
                                 <label class="toggle-label">
                                     <span>Reminders</span>
@@ -503,7 +672,6 @@
                                     </label>
                                 </label>
                             </div>
-                            
                             <div class="setting-item compact">
                                 <label class="toggle-label">
                                     <span>Quick Links</span>
@@ -515,10 +683,8 @@
                             </div>
                         </div>
                     </div>
-                </div>
-                
-                <div class="profile-settings">
-                    <!-- Collapsible Weather Section -->
+
+                    <!-- Collapsible: Weather -->
                     <div class="collapsible-section">
                         <div class="collapsible-header" data-section="weatherSettings">
                             <i class="fas fa-cloud-sun"></i>
@@ -533,13 +699,13 @@
                                     <option value="openweather">OpenWeatherMap (Key Required)</option>
                                 </select>
                             </div>
-                            
+
                             <div class="setting-item compact" id="weatherApiKeySection" style="display: none;">
                                 <label>API Key</label>
                                 <input type="text" id="weatherApiKey" class="profile-input" placeholder="Enter your API key">
                                 <small style="color: rgba(255,255,255,0.6); font-size: 0.75rem;">Get free key at openweathermap.org</small>
                             </div>
-                            
+
                             <div class="setting-item compact">
                                 <label>Location</label>
                                 <input type="text" id="customizeWeatherLocationInput" class="profile-input" placeholder="Enter city name">
@@ -551,55 +717,137 @@
                                         <i class="fas fa-vial"></i> Test API
                                     </button>
                                 </div>
-                        
-                        <!-- City Selection Dropdown -->
-                        <div class="city-dropdown" id="customizeCityDropdown" style="display: none;">
-                            <div class="city-dropdown-header">
-                                <input type="text" id="customizeCitySearchInput" class="city-search-input" placeholder="Search cities...">
-                                <button class="close-city-dropdown" id="customizeCloseCityDropdown">
-                                    <i class="fas fa-times"></i>
+
+                                <!-- City Selection Dropdown -->
+                                <div class="city-dropdown" id="customizeCityDropdown" style="display: none;">
+                                    <div class="city-dropdown-header">
+                                        <input type="text" id="customizeCitySearchInput" class="city-search-input" placeholder="Search cities...">
+                                        <button class="close-city-dropdown" id="customizeCloseCityDropdown">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                    <div class="city-dropdown-list" id="customizeCityDropdownList">
+                                        <!-- Cities will be populated here -->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="setting-item compact">
+                                <label>Auto-Refresh</label>
+                                <select class="profile-select" id="customizeWeatherRefreshInterval">
+                                    <option value="0">Never</option>
+                                    <option value="5">5 minutes</option>
+                                    <option value="10">10 minutes</option>
+                                    <option value="15">15 minutes</option>
+                                    <option value="30" selected>30 minutes</option>
+                                    <option value="60">1 hour</option>
+                                    <option value="custom">Custom...</option>
+                                </select>
+                                <div id="customizeCustomIntervalInput" style="display: none; margin-top: 0.5rem;">
+                                    <input type="number" id="customizeCustomIntervalValue" class="profile-input" placeholder="Enter value" min="1" style="width: 100px; display: inline-block;">
+                                    <select id="customizeCustomIntervalUnit" class="profile-select" style="width: 100px; display: inline-block; margin-left: 0.5rem;">
+                                        <option value="seconds">Seconds</option>
+                                        <option value="minutes" selected>Minutes</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Collapsible: Quick Links -->
+                    <div class="collapsible-section">
+                        <div class="collapsible-header" data-section="quickLinksSettings">
+                            <i class="fas fa-link"></i>
+                            <span>Quick Links</span>
+                            <i class="fas fa-chevron-down collapse-icon"></i>
+                        </div>
+                        <div class="collapsible-content" id="quickLinksSettingsContent">
+                            <button class="profile-btn secondary full-width" id="customizeAddLinkBtn">
+                                <i class="fas fa-plus"></i> Add Link
+                            </button>
+                            <div class="links-manager" id="linksManager" style="margin-top: 1rem;">
+                                <!-- Links will be populated here -->
+                            </div>
+                            <button class="profile-btn primary full-width" id="applyLinkOrderBtn" style="margin-top: 1rem; display: none;">
+                                <i class="fas fa-check"></i> Apply Order
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Collapsible: Search Engines & Bangs -->
+                    <div class="collapsible-section">
+                        <div class="collapsible-header" data-section="searchEnginesSettings">
+                            <i class="fas fa-search-plus"></i>
+                            <span>Search engines &amp; bangs</span>
+                            <i class="fas fa-chevron-down collapse-icon"></i>
+                        </div>
+                        <div class="collapsible-content" id="searchEnginesSettingsContent">
+                            <p class="setting-description" style="margin-bottom: 0.6rem;">
+                                Add custom engines. Use <code>%s</code> as the query placeholder. Bangs (e.g.
+                                <code>!gh foo</code>) jump straight to the engine when typed in the main search.
+                            </p>
+                            <div id="customEnginesList" class="custom-engines-list"></div>
+                            <div class="custom-engine-form">
+                                <input type="text" id="newEngineName" placeholder="Name (e.g. GitHub)" class="reminder-input">
+                                <input type="text" id="newEngineBang" placeholder="!bang (e.g. !gh)" class="reminder-input">
+                                <input type="url" id="newEngineUrl" placeholder="https://example.com/search?q=%s" class="reminder-input">
+                                <button class="profile-btn primary full-width" id="addCustomEngineBtn">
+                                    <i class="fas fa-plus"></i> Add engine
                                 </button>
                             </div>
-                            <div class="city-dropdown-list" id="customizeCityDropdownList">
-                                <!-- Cities will be populated here -->
+                        </div>
+                    </div>
+
+                    <!-- Collapsible: Privacy & Lock -->
+                    <div class="collapsible-section">
+                        <div class="collapsible-header" data-section="privacySettings">
+                            <i class="fas fa-shield-alt"></i>
+                            <span>Privacy &amp; lock</span>
+                            <i class="fas fa-chevron-down collapse-icon"></i>
+                        </div>
+                        <div class="collapsible-content" id="privacySettingsContent">
+                            <div class="setting-item">
+                                <label for="autoLockSelect">Auto-lock after idle</label>
+                                <select class="profile-select" id="autoLockSelect">
+                                    <option value="0">Off</option>
+                                    <option value="60000">1 minute</option>
+                                    <option value="300000">5 minutes</option>
+                                    <option value="600000">10 minutes</option>
+                                    <option value="1800000">30 minutes</option>
+                                    <option value="3600000">1 hour</option>
+                                </select>
+                                <small class="setting-description">Requires master password re-entry. Only active when signed in.</small>
+                            </div>
+                            <div class="setting-item compact" style="margin-top: 0.6rem;">
+                                <label class="toggle-label">
+                                    <span>Reduced motion</span>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="reducedMotionToggle">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </label>
                             </div>
                         </div>
                     </div>
-                    
-                    <div class="setting-item compact">
-                        <label>Auto-Refresh</label>
-                        <select class="profile-select" id="customizeWeatherRefreshInterval">
-                            <option value="0">Never</option>
-                            <option value="5">5 minutes</option>
-                            <option value="10">10 minutes</option>
-                            <option value="15">15 minutes</option>
-                            <option value="30" selected>30 minutes</option>
-                            <option value="60">1 hour</option>
-                            <option value="custom">Custom...</option>
-                        </select>
-                        <div id="customizeCustomIntervalInput" style="display: none; margin-top: 0.5rem;">
-                            <input type="number" id="customizeCustomIntervalValue" class="profile-input" placeholder="Enter value" min="1" style="width: 100px; display: inline-block;">
-                            <select id="customizeCustomIntervalUnit" class="profile-select" style="width: 100px; display: inline-block; margin-left: 0.5rem;">
-                                <option value="seconds">Seconds</option>
-                                <option value="minutes" selected>Minutes</option>
-                            </select>
+
+                    <!-- Collapsible: Import -->
+                    <div class="collapsible-section">
+                        <div class="collapsible-header" data-section="importSettings">
+                            <i class="fas fa-file-import"></i>
+                            <span>Import bookmarks</span>
+                            <i class="fas fa-chevron-down collapse-icon"></i>
+                        </div>
+                        <div class="collapsible-content" id="importSettingsContent">
+                            <p class="setting-description">
+                                Import a Chrome / Firefox / Edge bookmarks <code>.html</code> export. Bookmarks
+                                become Quick Links (capped at 12).
+                            </p>
+                            <button class="profile-btn primary full-width" id="bookmarkImportBtn">
+                                <i class="fas fa-upload"></i> Choose bookmarks file
+                            </button>
+                            <div id="bookmarkImportSummary" style="margin-top: 0.6rem; font-size: 0.85rem; opacity: 0.8;"></div>
                         </div>
                     </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="profile-settings">
-                    <h5><i class="fas fa-link"></i> Quick Links</h5>
-                    <button class="profile-btn secondary full-width" id="customizeAddLinkBtn">
-                        <i class="fas fa-plus"></i> Add Link
-                    </button>
-                    <div class="links-manager" id="linksManager" style="margin-top: 1rem;">
-                        <!-- Links will be populated here -->
-                    </div>
-                    <button class="profile-btn primary full-width" id="applyLinkOrderBtn" style="margin-top: 1rem; display: none;">
-                        <i class="fas fa-check"></i> Apply Order
-                    </button>
                 </div>
             </div>
             <!-- End Customize Tab Content -->
@@ -617,9 +865,131 @@
         </div>
     </div>
 
+    <!-- Generic Add/Edit Link Modal -->
+    <div class="reminder-modal" id="linkModal" role="dialog" aria-modal="true" aria-labelledby="linkModalTitle">
+        <div class="reminder-modal-content">
+            <div class="reminder-modal-header">
+                <h3 id="linkModalTitle"><i class="fas fa-plus" aria-hidden="true"></i> Add Link</h3>
+                <button class="reminder-close-btn" id="closeLinkModal" aria-label="Close"><i class="fas fa-times" aria-hidden="true"></i></button>
+            </div>
+            <div class="reminder-modal-body">
+                <div class="reminder-input-group">
+                    <label for="linkModalName">Name</label>
+                    <input type="text" id="linkModalName" class="reminder-input" placeholder="e.g. GitHub" autocomplete="off">
+                </div>
+                <div class="reminder-input-group">
+                    <label for="linkModalUrl">URL or app protocol</label>
+                    <input type="text" id="linkModalUrl" class="reminder-input" placeholder="https://example.com or whatsapp://" autocomplete="off" inputmode="url" spellcheck="false">
+                </div>
+                <div class="reminder-input-group">
+                    <label for="linkModalIcon">Icon (Font Awesome class)</label>
+                    <input type="text" id="linkModalIcon" class="reminder-input" placeholder="fas fa-link" autocomplete="off" spellcheck="false">
+                    <small style="color: rgba(255,255,255,0.55); font-size: .75rem;">Browse icons at fontawesome.com/icons</small>
+                </div>
+                <div class="reminder-input-group">
+                    <label class="toggle-label" style="justify-content: space-between;">
+                        <span>Open in new tab</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="linkModalNewTab">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </label>
+                </div>
+            </div>
+            <div class="reminder-modal-footer">
+                <button class="reminder-btn secondary" id="linkModalCancel">Cancel</button>
+                <button class="reminder-btn primary" id="linkModalSave">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Generic Confirm Modal -->
+    <div class="reminder-modal" id="confirmModal" role="alertdialog" aria-modal="true" aria-labelledby="confirmModalTitle">
+        <div class="reminder-modal-content" style="max-width: 420px;">
+            <div class="reminder-modal-header">
+                <h3 id="confirmModalTitle"><i class="fas fa-exclamation-triangle" aria-hidden="true"></i> Confirm</h3>
+                <button class="reminder-close-btn" id="confirmModalClose" aria-label="Close"><i class="fas fa-times" aria-hidden="true"></i></button>
+            </div>
+            <div class="reminder-modal-body">
+                <p id="confirmModalMessage" style="line-height: 1.5;"></p>
+            </div>
+            <div class="reminder-modal-footer">
+                <button class="reminder-btn secondary" id="confirmModalCancel">Cancel</button>
+                <button class="reminder-btn primary" id="confirmModalOk">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Keyboard shortcuts overlay -->
+    <div class="reminder-modal" id="shortcutsOverlay" role="dialog" aria-modal="true" aria-labelledby="shortcutsTitle">
+        <div class="reminder-modal-content" style="max-width: 480px;">
+            <div class="reminder-modal-header">
+                <h3 id="shortcutsTitle"><i class="fas fa-keyboard" aria-hidden="true"></i> Keyboard Shortcuts</h3>
+                <button class="reminder-close-btn" id="shortcutsClose" aria-label="Close"><i class="fas fa-times" aria-hidden="true"></i></button>
+            </div>
+            <div class="reminder-modal-body">
+                <div class="shortcut-row"><span>Focus search</span><kbd>/</kbd></div>
+                <div class="shortcut-row"><span>Toggle edit mode</span><kbd>Ctrl</kbd> + <kbd>E</kbd></div>
+                <div class="shortcut-row"><span>Save changes</span><kbd>Ctrl</kbd> + <kbd>S</kbd></div>
+                <div class="shortcut-row"><span>Show this help</span><kbd>?</kbd></div>
+                <div class="shortcut-row"><span>Close panel / cancel</span><kbd>Esc</kbd></div>
+            </div>
+        </div>
+    </div>
+
     <!-- Hidden file input for import -->
     <input type="file" id="importFileInput" accept=".json" style="display: none;">
 
-    <script src="script.js"></script>
+    <!-- Hidden file input for bookmark import -->
+    <input type="file" id="bookmarkImportInput" accept=".html,text/html" style="display: none;">
+
+    <!-- Command Palette (Ctrl+K) -->
+    <div class="command-palette" id="commandPalette" role="dialog" aria-modal="true" aria-label="Command palette">
+        <div class="command-palette-card">
+            <div class="command-palette-input-wrap">
+                <i class="fas fa-search" aria-hidden="true"></i>
+                <input type="text" id="commandPaletteInput" placeholder="Type a command, theme, link, or reminder..." autocomplete="off" spellcheck="false">
+                <kbd>Esc</kbd>
+            </div>
+            <div class="command-palette-list" id="commandPaletteList" role="listbox"></div>
+            <div class="command-palette-hint">
+                <span><kbd>↑</kbd><kbd>↓</kbd> navigate</span>
+                <span><kbd>Enter</kbd> run</span>
+                <span><kbd>Esc</kbd> close</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Weather Location Search Modal -->
+    <div class="command-palette" id="weatherLocationModal" role="dialog" aria-modal="true" aria-label="Search weather location">
+        <div class="command-palette-card">
+            <div class="command-palette-input-wrap">
+                <i class="fas fa-map-marker-alt" aria-hidden="true"></i>
+                <input type="text" id="weatherLocationModalInput" placeholder="Search city or location…" autocomplete="off" spellcheck="false">
+                <kbd>Esc</kbd>
+            </div>
+            <div class="command-palette-list" id="weatherLocationModalList" role="listbox"></div>
+            <div class="command-palette-hint">
+                <span><kbd>↑</kbd><kbd>↓</kbd> navigate</span>
+                <span><kbd>Enter</kbd> select</span>
+                <span><kbd>Esc</kbd> close</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Auto-lock overlay (master password re-entry after idle) -->
+    <div class="lock-overlay" id="lockOverlay" role="dialog" aria-modal="true" aria-labelledby="lockTitle">
+        <div class="lock-card">
+            <i class="fas fa-lock lock-icon" aria-hidden="true"></i>
+            <h3 id="lockTitle">Locked</h3>
+            <p>Re-enter your master password to continue.</p>
+            <input type="password" id="lockPasswordInput" placeholder="Master password" autocomplete="current-password">
+            <div class="lock-error" id="lockError" role="alert" aria-live="assertive"></div>
+            <button class="app-modal-btn primary" id="lockUnlockBtn">Unlock</button>
+            <button class="lock-signout" id="lockSignOutBtn">Sign out</button>
+        </div>
+    </div>
+
+    <script src="script.js" defer></script>
 </body>
 </html>
