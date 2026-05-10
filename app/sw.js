@@ -1,5 +1,5 @@
 /* Nitrogen service worker - simple cache-first for app shell, network-first for HTML */
-const VERSION = 'v1';
+const VERSION = 'v2';
 const SHELL = `nitrogen-shell-${VERSION}`;
 const RUNTIME = `nitrogen-runtime-${VERSION}`;
 

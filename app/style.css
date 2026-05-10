@@ -4993,7 +4993,7 @@ body.theme-arctic .reminder-badge.due { color: #b91c1c; border-color: rgba(185,2
     max-width: 90vw;
     max-height: 80vh;
 }
-.clocks-widget   { top: 50%; left: 16px;  transform: translateY(-50%); width: 200px; min-width: 170px; min-height: 160px; max-height: 320px; padding: 12px 14px; }
+.clocks-widget   { top: 50%; left: 16px;  transform: translateY(-50%); width: 200px; min-width: 170px; min-height: 160px; padding: 12px 14px; }
 .calendar-widget { top: 50%; right: 16px; transform: translateY(-50%); width: 240px; min-width: 220px; min-height: 230px; padding: 10px 12px 12px; }
 .notes-widget    { top: 16px; right: 16px; width: 260px; height: 220px; min-width: 200px; min-height: 120px; }
 
@@ -5003,6 +5003,18 @@ body.theme-arctic .reminder-badge.due { color: #b91c1c; border-color: rgba(185,2
 .notes-widget::-webkit-resizer {
     background: rgba(255, 255, 255, 0.3);
     border-radius: 0 0 14px 0;
+    cursor: nwse-resize;
+}
+/* Make the resizer easier to find when the widget header is hidden
+   (the widget body otherwise shows a `move` cursor everywhere). */
+.widget-header-hidden.clocks-widget::-webkit-resizer,
+.widget-header-hidden.calendar-widget::-webkit-resizer,
+.widget-header-hidden.notes-widget::-webkit-resizer,
+.widget-header-hidden.quicklinks-widget::-webkit-resizer,
+.widget-header-hidden.reminder-widget::-webkit-resizer,
+.widget-header-hidden.weather-widget::-webkit-resizer {
+    background: rgba(255, 255, 255, 0.55);
+    cursor: nwse-resize;
 }
 
 /* When notes is collapsed, suppress its resize handle (no body to resize) */
@@ -5196,21 +5208,106 @@ body.theme-arctic .notes-text:focus { background: #fff; border-color: #2563eb; }
 /* Hide widgets when toggled off (works with applyWidgetVisibility) */
 .widget-hidden { display: none !important; }
 
-/* Hide widget header when toggled off — body of widget remains a drag region */
+/* Hide widget header when toggled off — the header text/icons collapse but
+   action buttons (add/prev/next/etc.) remain accessible as a compact floating
+   strip in the top-right corner. The widget body itself becomes the drag
+   region. */
 .widget-header-hidden > .weather-header,
 .widget-header-hidden > .reminder-header,
 .widget-header-hidden > .quicklinks-header,
 .widget-header-hidden > .clocks-header,
 .widget-header-hidden > .calendar-header,
-.widget-header-hidden > .notes-header { display: none !important; }
+.widget-header-hidden > .notes-header {
+    /* Make the header a small overlay rather than removing it entirely so
+       buttons inside (add-clock, add-reminder, prev/next-month, notes
+       collapse, etc.) stay reachable. */
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    cursor: default !important;
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    left: auto;
+    bottom: auto;
+    z-index: 4;
+    width: auto;
+    min-height: 0;
+    pointer-events: none; /* let drag pass through empty parts */
+    gap: 4px;
+}
+/* Hide titles, decorative icons, drag affordances, and status text — only
+   actionable controls remain visible. */
+.widget-header-hidden > .weather-header > *:not(button),
+.widget-header-hidden > .reminder-header > *:not(button),
+.widget-header-hidden > .quicklinks-header > *:not(button),
+.widget-header-hidden > .clocks-header > *:not(button),
+.widget-header-hidden > .calendar-header > *:not(button),
+.widget-header-hidden > .notes-header > *:not(button) {
+    display: none !important;
+}
+/* Re-enable pointer events on the surviving buttons. */
+.widget-header-hidden > .weather-header button,
+.widget-header-hidden > .reminder-header button,
+.widget-header-hidden > .quicklinks-header button,
+.widget-header-hidden > .clocks-header button,
+.widget-header-hidden > .calendar-header button,
+.widget-header-hidden > .notes-header button {
+    pointer-events: auto;
+    opacity: 0.55;
+    transition: opacity 120ms;
+}
+.widget-header-hidden > .weather-header button:hover,
+.widget-header-hidden > .reminder-header button:hover,
+.widget-header-hidden > .quicklinks-header button:hover,
+.widget-header-hidden > .clocks-header button:hover,
+.widget-header-hidden > .calendar-header button:hover,
+.widget-header-hidden > .notes-header button:hover {
+    opacity: 1;
+}
+/* Widgets are positioned `absolute`/`fixed` already, so the absolute floating
+   header overlay anchors correctly. Reserve a small strip of padding at the
+   top of the body so action buttons (top-right floating strip) don't overlap
+   the widget content. */
+.widget-header-hidden { padding-top: 38px !important; }
+/* Notes is tiny — only needs space for its single collapse button.
+   Calendar/clocks/reminder need a bit more breathing room. */
+#notesWidget.widget-header-hidden { padding-top: 30px !important; }
+/* Quicklinks header has no action buttons — no need to reserve space. */
+.quicklinks-widget.widget-header-hidden { padding-top: 1rem !important; }
 /* Allow drag from anywhere on widget body when its header is hidden */
 .widget-header-hidden { cursor: move; }
-.widget-header-hidden button,
-.widget-header-hidden input,
-.widget-header-hidden textarea,
-.widget-header-hidden select,
+/* Restore proper cursors for interactive children (cursor is inherited, so
+     we must explicitly reset it for each type rather than using `auto`,
+     which can override more specific rules like .link-card's pointer). */
 .widget-header-hidden a,
-.widget-header-hidden [contenteditable="true"] { cursor: auto; }
+.widget-header-hidden button,
+.widget-header-hidden .link-card,
+.widget-header-hidden .remove-btn,
+.widget-header-hidden .reminder-item,
+.widget-header-hidden .calendar-grid .cal-day,
+.widget-header-hidden [role="button"],
+.widget-header-hidden label { cursor: pointer; }
+.widget-header-hidden input[type="text"],
+.widget-header-hidden input[type="search"],
+.widget-header-hidden input[type="url"],
+.widget-header-hidden input[type="email"],
+.widget-header-hidden input[type="password"],
+.widget-header-hidden input[type="number"],
+.widget-header-hidden textarea,
+.widget-header-hidden [contenteditable="true"],
+.widget-header-hidden [contenteditable=""] { cursor: text; }
+.widget-header-hidden select,
+.widget-header-hidden input[type="checkbox"],
+.widget-header-hidden input[type="radio"],
+.widget-header-hidden input[type="range"],
+.widget-header-hidden input[type="color"],
+.widget-header-hidden input[type="file"] { cursor: default; }
+.widget-header-hidden input[disabled],
+.widget-header-hidden button[disabled],
+.widget-header-hidden select[disabled],
+.widget-header-hidden textarea[disabled] { cursor: not-allowed; }
 /* Notes can't be collapsed without its header — keep it expanded */
 #notesWidget.widget-header-hidden.collapsed .notes-text { display: block !important; }
 

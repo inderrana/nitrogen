@@ -3711,6 +3711,10 @@ class NewTabHomepage {
             this.loadWidgetPosition(widget, widgetId);
             
             let isDragging = false;
+            let pendingDrag = false;
+            let pressX = 0;
+            let pressY = 0;
+            let pressRect = null;
             let currentX;
             let currentY;
             let initialX;
@@ -3720,87 +3724,145 @@ class NewTabHomepage {
             
             // Bind to widget itself so dragging still works when the header
             // (which contains the drag handle) is hidden via .widget-header-hidden
-            widget.addEventListener('mousedown', (e) => {
-                // Don't drag if clicking on buttons, inputs, or editable content
-                if (e.target.closest('button') || 
-                    e.target.closest('input') || 
-                    e.target.closest('textarea') ||
-                    e.target.closest('select') ||
-                    e.target.closest('a') ||
-                    e.target.closest('[contenteditable="true"]') ||
-                    e.target.hasAttribute('contenteditable')) {
+            const DRAG_THRESHOLD = 5; // pixels
+
+            const onPress = (clientX, clientY, target, e) => {
+                // Don't drag if pressing on buttons, inputs, or editable content
+                if (target.closest('button') ||
+                    target.closest('input') ||
+                    target.closest('textarea') ||
+                    target.closest('select') ||
+                    target.closest('a') ||
+                    target.closest('[contenteditable="true"]') ||
+                    target.hasAttribute('contenteditable')) {
                     return;
                 }
-                // Don't drag if clicking the native resize corner (bottom-right ~18px)
+                // Don't drag if pressing the native resize corner (bottom-right ~22px)
                 const rect = widget.getBoundingClientRect();
-                const inResizeCorner = (e.clientX >= rect.right - 18) && (e.clientY >= rect.bottom - 18);
-                if (inResizeCorner) return;
+                const inResizeCorner = (clientX >= rect.right - 22) && (clientY >= rect.bottom - 22);
+                if (inResizeCorner) {
+                    // Normalize the widget's position before the browser handles
+                    // native resize: some widgets are initially centered via
+                    // `transform: translate(...)` and resizing without first
+                    // removing that transform makes the widget visually jump
+                    // (because translate% is recomputed against the new size)
+                    // instead of growing from the corner. Convert to absolute
+                    // top/left anchored to the current visual rect.
+                    if (widget.style.transform && widget.style.transform.includes('translate')) {
+                        widget.style.left = rect.left + 'px';
+                        widget.style.top = rect.top + 'px';
+                        widget.style.right = 'auto';
+                        widget.style.bottom = 'auto';
+                        widget.style.transform = 'none';
+                    }
+                    return;
+                }
                 // If header is visible, only allow dragging from inside the handle.
                 // If header is hidden, allow dragging from the widget body.
                 const headerHidden = widget.classList.contains('widget-header-hidden');
-                if (!headerHidden && !e.target.closest('.widget-drag-handle')) {
+                if (!headerHidden && !target.closest('.widget-drag-handle')) {
                     return;
                 }
-                
-                isDragging = true;
-                widget.classList.add('dragging');
-                
-                // Remove transform to allow proper left/top positioning
-                if (widget.style.transform && widget.style.transform.includes('translate')) {
-                    widget.style.transform = 'none';
+
+                // Arm a pending drag — only actually start dragging once the
+                // cursor moves past a small threshold. This prevents simple
+                // taps/clicks (e.g. on a calendar day or clock row when the
+                // header is hidden) from being treated as drags, which
+                // previously stripped the centering transform and wrote NaN
+                // positions to localStorage on release.
+                pendingDrag = true;
+                isDragging = false;
+                pressX = clientX;
+                pressY = clientY;
+                pressRect = rect;
+            };
+
+            const onMove = (clientX, clientY, e) => {
+                // Promote a pending press to an active drag once the user has
+                // moved past the threshold; otherwise treat it as a click/tap.
+                if (pendingDrag && !isDragging) {
+                    const dx = clientX - pressX;
+                    const dy = clientY - pressY;
+                    if ((dx * dx + dy * dy) < (DRAG_THRESHOLD * DRAG_THRESHOLD)) return;
+                    isDragging = true;
+                    widget.classList.add('dragging');
+
+                    if (widget.style.transform && widget.style.transform.includes('translate')) {
+                        widget.style.transform = 'none';
+                    }
+
+                    const computedLeft = parseInt(window.getComputedStyle(widget).left);
+                    const computedTop = parseInt(window.getComputedStyle(widget).top);
+                    xOffset = Number.isFinite(computedLeft) ? computedLeft : pressRect.left;
+                    yOffset = Number.isFinite(computedTop) ? computedTop : pressRect.top;
+
+                    initialX = pressX - xOffset;
+                    initialY = pressY - yOffset;
                 }
-                
-                // Get current position from computed style or element position
-                const computedLeft = parseInt(window.getComputedStyle(widget).left) || rect.left;
-                const computedTop = parseInt(window.getComputedStyle(widget).top) || rect.top;
-                
-                xOffset = computedLeft;
-                yOffset = computedTop;
-                
-                initialX = e.clientX - xOffset;
-                initialY = e.clientY - yOffset;
-            });
-            
-            document.addEventListener('mousemove', (e) => {
+
                 if (!isDragging) return;
-                
-                e.preventDefault();
-                
-                currentX = e.clientX - initialX;
-                currentY = e.clientY - initialY;
-                
-                // Add padding from edges (20px minimum space)
+
+                if (e && e.cancelable) e.preventDefault();
+
+                currentX = clientX - initialX;
+                currentY = clientY - initialY;
+
                 const edgePadding = 20;
                 const widgetWidth = widget.offsetWidth;
                 const widgetHeight = widget.offsetHeight;
                 const maxX = window.innerWidth - widgetWidth - edgePadding;
                 const maxY = window.innerHeight - widgetHeight - edgePadding;
-                
+
                 currentX = Math.max(edgePadding, Math.min(currentX, maxX));
                 currentY = Math.max(edgePadding, Math.min(currentY, maxY));
-                
+
                 xOffset = currentX;
                 yOffset = currentY;
-                
+
                 widget.style.left = currentX + 'px';
                 widget.style.top = currentY + 'px';
                 widget.style.right = 'auto';
                 widget.style.bottom = 'auto';
-            });
-            
-            document.addEventListener('mouseup', () => {
+            };
+
+            const onRelease = () => {
+                pendingDrag = false;
                 if (isDragging) {
                     isDragging = false;
                     widget.classList.remove('dragging');
-                    
-                    // Save position and size to profile
-                    const size = {
-                        width: widget.offsetWidth,
-                        height: widget.offsetHeight
-                    };
-                    this.saveWidgetPosition(widgetId, currentX, currentY, size);
+
+                    if (Number.isFinite(currentX) && Number.isFinite(currentY)) {
+                        const size = {
+                            width: widget.offsetWidth,
+                            height: widget.offsetHeight
+                        };
+                        this.saveWidgetPosition(widgetId, currentX, currentY, size);
+                    }
                 }
+            };
+
+            // Mouse
+            widget.addEventListener('mousedown', (e) => {
+                onPress(e.clientX, e.clientY, e.target, e);
             });
+            document.addEventListener('mousemove', (e) => {
+                onMove(e.clientX, e.clientY, e);
+            });
+            document.addEventListener('mouseup', onRelease);
+
+            // Touch (mirrors mouse so widgets work on phones/tablets)
+            widget.addEventListener('touchstart', (e) => {
+                if (!e.touches || e.touches.length !== 1) return;
+                const t = e.touches[0];
+                onPress(t.clientX, t.clientY, e.target, e);
+            }, { passive: true });
+            document.addEventListener('touchmove', (e) => {
+                if (!e.touches || e.touches.length !== 1) return;
+                const t = e.touches[0];
+                onMove(t.clientX, t.clientY, e);
+            }, { passive: false });
+            document.addEventListener('touchend', onRelease);
+            document.addEventListener('touchcancel', onRelease);
             
             // Watch for resize events (when user manually resizes the widget itself)
             if (window.ResizeObserver) {
