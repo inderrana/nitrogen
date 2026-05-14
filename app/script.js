@@ -1905,7 +1905,7 @@ class NewTabHomepage {
 
     changeTheme(themeName, saveToProfile = true) {
         // Remove existing theme classes
-        const themes = ['theme-ocean', 'theme-sunset', 'theme-forest', 'theme-purple', 'theme-rose', 'theme-dark', 'theme-midnight', 'theme-charcoal', 'theme-navy', 'theme-steel', 'theme-cobalt', 'theme-arctic', 'theme-modern', 'theme-minimal', 'theme-weather', 'theme-weather-dark'];
+        const themes = ['theme-ocean', 'theme-sunset', 'theme-forest', 'theme-purple', 'theme-rose', 'theme-dark', 'theme-midnight', 'theme-charcoal', 'theme-navy', 'theme-steel', 'theme-cobalt', 'theme-arctic', 'theme-modern', 'theme-minimal', 'theme-bubblegum', 'theme-purple-pop', 'theme-neon', 'theme-candy', 'theme-weather', 'theme-weather-dark'];
         themes.forEach(theme => document.body.classList.remove(theme));
         
         // Remove inline weather theme styles to allow CSS themes to work
@@ -5579,7 +5579,7 @@ class NewTabHomepage {
                         }
                         
                         // Show login tab
-                        this.showTab('login');
+                        this.switchAuthTab('login');
                         
                         this.showAuthMessage('Account imported successfully! Please enter your password to login.', 'success');
                     } else {
@@ -5616,7 +5616,11 @@ class NewTabHomepage {
             }
         } catch (error) {
             console.error('Import error:', error);
-            const message = importType === 'account' ? 'Failed to import account: Invalid file' : 'Import failed: Invalid file';
+            const isInvalidFile = error instanceof SyntaxError || /Invalid file format|Failed to read file/i.test(error?.message || '');
+            const detail = isInvalidFile ? 'Invalid file' : (error?.message || 'Unexpected error');
+            const message = importType === 'account'
+                ? 'Failed to import account: ' + detail
+                : 'Import failed: ' + detail;
             if (importType === 'account') {
                 this.showAuthMessage(message, 'error');
             } else {
@@ -6820,7 +6824,7 @@ class NewTabHomepage {
         const items = [];
 
         // Themes
-        const themes = ['ocean','sunset','forest','purple','rose','dark','midnight','charcoal','navy','steel','cobalt','arctic','modern','minimal','weather','weather-dark'];
+        const themes = ['ocean','sunset','forest','purple','rose','dark','midnight','charcoal','navy','steel','cobalt','arctic','modern','minimal','bubblegum','bubblegum-purple','neon','candy','weather','weather-dark'];
         themes.forEach(t => items.push({
             kind: 'Theme', icon: 'fa-palette', label: 'Switch theme: ' + t,
             run: () => { try { this.changeTheme(t, true); this.toast('Theme: ' + t, 'success', 1500); } catch(_) {} }

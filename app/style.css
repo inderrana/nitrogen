@@ -167,8 +167,10 @@ body.theme-cobalt {
 /* === Modern: vibrant aurora-like gradient with rich glass === */
 body.theme-modern {
     --bg-gradient: linear-gradient(135deg, #0f172a 0%, #6366f1 45%, #ec4899 100%);
-    --glass-bg: rgba(255, 255, 255, 0.10);
-    --glass-border: rgba(255, 255, 255, 0.22);
+    --glass-bg: rgba(255, 255, 255, 0.14);
+    --glass-border: rgba(255, 255, 255, 0.28);
+    --surface: rgba(255, 255, 255, 0.14);
+    --border-subtle: rgba(255, 255, 255, 0.28);
     --text-color: #f8fafc;
     color: #f8fafc;
     --primary-color: rgba(236, 72, 153, 1);
@@ -177,54 +179,503 @@ body.theme-modern {
     --primary-color-40: rgba(236, 72, 153, 0.4);
     --primary-color-20: rgba(236, 72, 153, 0.2);
 }
-body.theme-modern .container,
 body.theme-modern .quicklinks-widget,
 body.theme-modern .weather-widget,
 body.theme-modern .reminder-widget,
 body.theme-modern .notes-widget,
-body.theme-modern .clocks-widget {
+body.theme-modern .clocks-widget,
+body.theme-modern .calendar-widget {
+    background: rgba(255, 255, 255, 0.14) !important;
+    border: 1px solid rgba(255, 255, 255, 0.28) !important;
     backdrop-filter: blur(22px) saturate(160%);
     -webkit-backdrop-filter: blur(22px) saturate(160%);
+    box-shadow: 0 8px 32px rgba(15, 23, 42, 0.35) !important;
+}
+/* Vibrant gradient themes: subtle dark text-shadow keeps white text
+   readable on the lighter mid-stops (pink/coral/violet zones). */
+body.theme-modern .time,
+body.theme-modern .date,
+body.theme-modern .greeting,
+body.theme-modern .links-title,
+body.theme-bubblegum .time,
+body.theme-bubblegum .date,
+body.theme-bubblegum .greeting,
+body.theme-bubblegum .links-title,
+body.theme-purple-pop .time,
+body.theme-purple-pop .date,
+body.theme-purple-pop .greeting,
+body.theme-purple-pop .links-title {
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
 }
 
-/* === Minimal: clean, near-monochrome, hairline borders === */
+/* === Minimal Light: editorial paper-white with vivid coral accent ===
+   Distinctly different from Arctic (soft cool slate). This one is
+   warm cream paper, near-black text (WCAG AAA), sharp coral pop. */
 body.theme-minimal {
-    --bg-gradient: linear-gradient(180deg, #fafafa 0%, #f4f4f5 100%);
-    --glass-bg: rgba(255, 255, 255, 0.85);
-    --glass-border: rgba(0, 0, 0, 0.08);
-    --text-color: #18181b;
-    color: #18181b;
-    --primary-color: rgba(24, 24, 27, 1);
-    --primary-color-80: rgba(24, 24, 27, 0.8);
-    --primary-color-60: rgba(24, 24, 27, 0.6);
-    --primary-color-40: rgba(24, 24, 27, 0.4);
-    --primary-color-20: rgba(24, 24, 27, 0.2);
+    --bg-gradient: linear-gradient(180deg, #fdfcf7 0%, #f6f3ea 100%);
+    --glass-bg: #ffffff;
+    --glass-border: rgba(20, 14, 8, 0.14);
+    --surface: #ffffff;
+    --surface-hover: #fbf9f3;
+    --border-subtle: rgba(20, 14, 8, 0.12);
+    --border: rgba(20, 14, 8, 0.22);
+    --text-color: #1a1410;
+    color: #1a1410;
+    /* Vivid coral accent — pops against the cream paper */
+    --primary-color:    #e94f37;
+    --primary-color-80: rgba(233, 79, 55, 0.85);
+    --primary-color-60: rgba(233, 79, 55, 0.65);
+    --primary-color-40: rgba(233, 79, 55, 0.40);
+    --primary-color-20: rgba(233, 79, 55, 0.18);
+    --shadow-sm: 0 1px 0 rgba(20, 14, 8, 0.06);
+    --shadow-md: 0 2px 0 rgba(20, 14, 8, 0.08);
+    --shadow-lg: 0 4px 0 rgba(20, 14, 8, 0.10);
 }
+
+/* Text contrast on paper background — all dark espresso */
+body.theme-minimal,
 body.theme-minimal .greeting,
 body.theme-minimal .date,
 body.theme-minimal .time,
 body.theme-minimal .links-title,
+body.theme-minimal .link-name,
+body.theme-minimal .weather-temp,
 body.theme-minimal .weather-desc,
 body.theme-minimal .weather-location,
-body.theme-minimal .link-name { color: #18181b; }
+body.theme-minimal .reminder-text,
+body.theme-minimal .reminder-date,
+body.theme-minimal .notes-text,
+body.theme-minimal h1,
+body.theme-minimal h2,
+body.theme-minimal h3,
+body.theme-minimal h4 { color: #1a1410 !important; text-shadow: none !important; }
+
+/* Slightly muted secondary text but still WCAG AA */
+body.theme-minimal .date,
+body.theme-minimal .greeting,
+body.theme-minimal .weather-desc,
+body.theme-minimal .weather-location,
+body.theme-minimal .links-title { color: #4a3f35 !important; opacity: 1; }
+
+/* Time as the editorial "headline" — large, super tight */
+body.theme-minimal .time {
+    font-weight: 800;
+    letter-spacing: -0.06em;
+    color: #1a1410 !important;
+}
+
+/* Solid white widgets with sharp 1px borders, no blur — editorial card look */
 body.theme-minimal .quicklinks-widget,
 body.theme-minimal .weather-widget,
 body.theme-minimal .reminder-widget,
 body.theme-minimal .notes-widget,
 body.theme-minimal .clocks-widget,
+body.theme-minimal .calendar-widget,
 body.theme-minimal .search-container,
 body.theme-minimal .link-card {
-    background: rgba(255, 255, 255, 0.75) !important;
-    border: 1px solid rgba(0,0,0,0.08) !important;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.04) !important;
+    background: #ffffff !important;
+    border: 1px solid rgba(20, 14, 8, 0.14) !important;
+    box-shadow: 0 1px 0 rgba(20, 14, 8, 0.06), 0 4px 12px rgba(20, 14, 8, 0.04) !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
+    border-radius: 8px !important;
 }
+
+/* Link cards: hover lifts with coral border for clear feedback */
+body.theme-minimal .link-card:hover {
+    border-color: #e94f37 !important;
+    background: #ffffff !important;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 0 rgba(233, 79, 55, 0.18), 0 6px 18px rgba(20, 14, 8, 0.06) !important;
+}
+body.theme-minimal .link-icon { color: #1a1410 !important; opacity: 0.85; }
+body.theme-minimal .link-card:hover .link-icon { color: #e94f37 !important; opacity: 1; }
+
+/* Search input: clean paper with coral focus ring */
 body.theme-minimal #searchInput {
-    color: #18181b;
-    background: rgba(255,255,255,0.9);
+    color: #1a1410 !important;
+    background: #ffffff !important;
 }
-body.theme-minimal #searchInput::placeholder { color: rgba(24,24,27,0.45); }
+body.theme-minimal #searchInput::placeholder { color: rgba(26, 20, 16, 0.45); }
+body.theme-minimal .search-container:focus-within {
+    border-color: #e94f37 !important;
+    box-shadow: 0 0 0 3px rgba(233, 79, 55, 0.15) !important;
+}
+
+/* Search engine tabs: active gets coral underline, not background */
+body.theme-minimal .search-engine-tabs {
+    background: transparent !important;
+    border: none !important;
+    border-bottom: 1px solid rgba(20, 14, 8, 0.10) !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+}
+body.theme-minimal .search-tab {
+    color: rgba(26, 20, 16, 0.6) !important;
+    border-radius: 0 !important;
+    border-bottom: 2px solid transparent !important;
+    background: transparent !important;
+}
+body.theme-minimal .search-tab.active {
+    color: #1a1410 !important;
+    background: transparent !important;
+    border-bottom-color: #e94f37 !important;
+}
+
+/* Profile button: white circle with hairline border */
+body.theme-minimal .profile-btn {
+    background: #ffffff !important;
+    border: 1px solid rgba(20, 14, 8, 0.14) !important;
+    color: #1a1410 !important;
+}
+
+/* Side panels (settings, edit) — white paper on cream body */
+body.theme-minimal .profile-panel,
+body.theme-minimal .edit-panel {
+    background: #ffffff !important;
+    border-left: 1px solid rgba(20, 14, 8, 0.10) !important;
+    color: #1a1410 !important;
+}
+body.theme-minimal .profile-panel *,
+body.theme-minimal .edit-panel * { color: #1a1410; }
+body.theme-minimal .profile-input,
+body.theme-minimal .reminder-input,
+body.theme-minimal .profile-select {
+    background: #fbf9f3 !important;
+    color: #1a1410 !important;
+    border: 1px solid rgba(20, 14, 8, 0.14) !important;
+}
+
+/* Primary buttons: coral fill, white text — bold pop */
+body.theme-minimal .profile-btn.primary,
+body.theme-minimal .reminder-btn.primary,
+body.theme-minimal .app-modal-btn.primary {
+    background: #e94f37 !important;
+    color: #ffffff !important;
+    border: 1px solid #e94f37 !important;
+}
+body.theme-minimal .profile-btn.primary:hover,
+body.theme-minimal .reminder-btn.primary:hover {
+    background: #d63d25 !important;
+    border-color: #d63d25 !important;
+}
+
+/* Secondary buttons: outlined */
+body.theme-minimal .profile-btn.secondary,
+body.theme-minimal .reminder-btn.secondary {
+    background: transparent !important;
+    color: #1a1410 !important;
+    border: 1px solid rgba(20, 14, 8, 0.20) !important;
+}
+
+/* Kill the global radial overlay that muddies the cream paper */
+body.theme-minimal::before { display: none !important; }
+
+/* Settings panel internals — header, tabs, sections, dropdowns */
+body.theme-minimal .profile-panel-header {
+    background: #fbf9f3 !important;
+    color: #1a1410 !important;
+    border-bottom: 1px solid rgba(20, 14, 8, 0.10) !important;
+}
+body.theme-minimal .profile-panel-header h3,
+body.theme-minimal .profile-panel-header h3 i,
+body.theme-minimal .profile-close-btn { color: #1a1410 !important; }
+body.theme-minimal .profile-close-btn:hover { background: rgba(20, 14, 8, 0.06) !important; }
+
+body.theme-minimal .profile-tabs {
+    background: #ffffff !important;
+    border-bottom: 1px solid rgba(20, 14, 8, 0.10) !important;
+}
+body.theme-minimal .profile-tab {
+    background: transparent !important;
+    color: rgba(26, 20, 16, 0.55) !important;
+    border-bottom: 2px solid transparent !important;
+}
+body.theme-minimal .profile-tab:hover:not(.active) {
+    color: #1a1410 !important;
+    background: rgba(20, 14, 8, 0.03) !important;
+}
+body.theme-minimal .profile-tab.active {
+    color: #1a1410 !important;
+    background: transparent !important;
+    border-bottom-color: #e94f37 !important;
+}
+body.theme-minimal .profile-tab.active i { color: #e94f37 !important; }
+body.theme-minimal .profile-tab-content { color: #1a1410 !important; }
+
+/* Section headings inside settings */
+body.theme-minimal .profile-settings h5,
+body.theme-minimal .collapsible-header { color: #1a1410 !important; }
+body.theme-minimal .collapsible-header { background: #fbf9f3 !important; border: 1px solid rgba(20, 14, 8, 0.10) !important; }
+body.theme-minimal .collapsible-content { background: #ffffff !important; }
+
+/* Native <select> dropdown options inherit page colors on most browsers,
+   but Windows/Chromium needs explicit color/background on <option>. */
+body.theme-minimal select,
+body.theme-minimal select option,
+body.theme-minimal .profile-select,
+body.theme-minimal .profile-select option,
+body.theme-minimal .reminder-select,
+body.theme-minimal .reminder-select option {
+    color: #1a1410 !important;
+    background-color: #ffffff !important;
+}
+
+/* Settings labels and small helper text */
+body.theme-minimal .setting-item label,
+body.theme-minimal .setting-item span,
+body.theme-minimal .setting-hint,
+body.theme-minimal .setting-description,
+body.theme-minimal .profile-input-group label,
+body.theme-minimal .profile-input-group small { color: #1a1410 !important; }
+body.theme-minimal .setting-hint,
+body.theme-minimal .setting-description,
+body.theme-minimal .profile-input-group small { opacity: 0.7; }
+
+/* Toggle switches: track inactive grey, active coral */
+body.theme-minimal .toggle-slider {
+    background-color: rgba(20, 14, 8, 0.18) !important;
+}
+body.theme-minimal .toggle-switch input:checked + .toggle-slider {
+    background-color: #e94f37 !important;
+}
+
+/* Reminder/link/confirm modals on minimal */
+body.theme-minimal .reminder-modal-content {
+    background: #ffffff !important;
+    color: #1a1410 !important;
+    border: 1px solid rgba(20, 14, 8, 0.12) !important;
+}
+body.theme-minimal .reminder-modal-header,
+body.theme-minimal .reminder-modal-header h3,
+body.theme-minimal .reminder-modal-body,
+body.theme-minimal .reminder-modal-body label,
+body.theme-minimal .reminder-modal-body p { color: #1a1410 !important; }
+body.theme-minimal .reminder-close-btn { color: #1a1410 !important; }
+
+/* Dropdown menus / command palette on minimal */
+body.theme-minimal .profile-dropdown-menu,
+body.theme-minimal .command-palette-card {
+    background: #ffffff !important;
+    color: #1a1410 !important;
+    border: 1px solid rgba(20, 14, 8, 0.12) !important;
+}
+body.theme-minimal .dropdown-item { color: #1a1410 !important; }
+body.theme-minimal .dropdown-item:hover { background: rgba(20, 14, 8, 0.05) !important; }
+body.theme-minimal .dropdown-divider { background: rgba(20, 14, 8, 0.10) !important; }
+
+/* === Bubblegum: bright pink/violet pop === */
+body.theme-bubblegum {
+    --bg-gradient: linear-gradient(135deg, #ff6ec7 0%, #ff9a9e 45%, #a18cd1 100%);
+    --glass-bg: rgba(255, 255, 255, 0.18);
+    --glass-border: rgba(255, 255, 255, 0.35);
+    --surface: rgba(255, 255, 255, 0.18);
+    --border-subtle: rgba(255, 255, 255, 0.35);
+    --text-color: #fff;
+    color: #fff;
+    --primary-color: rgba(255, 110, 199, 1);
+    --primary-color-80: rgba(255, 110, 199, 0.8);
+    --primary-color-60: rgba(255, 110, 199, 0.6);
+    --primary-color-40: rgba(255, 110, 199, 0.4);
+    --primary-color-20: rgba(255, 110, 199, 0.2);
+}
+body.theme-bubblegum .quicklinks-widget,
+body.theme-bubblegum .weather-widget,
+body.theme-bubblegum .reminder-widget,
+body.theme-bubblegum .notes-widget,
+body.theme-bubblegum .clocks-widget,
+body.theme-bubblegum .calendar-widget {
+    background: rgba(255, 255, 255, 0.18) !important;
+    border: 1px solid rgba(255, 255, 255, 0.35) !important;
+    backdrop-filter: blur(18px) saturate(180%);
+    -webkit-backdrop-filter: blur(18px) saturate(180%);
+    box-shadow: 0 8px 32px rgba(255, 110, 199, 0.25) !important;
+}
+
+/* === Purple Pop: deep violet → magenta with electric glow === */
+body.theme-purple-pop {
+    --bg-gradient: linear-gradient(135deg, #2e1065 0%, #7c3aed 45%, #d946ef 100%);
+    --glass-bg: rgba(255, 255, 255, 0.16);
+    --glass-border: rgba(217, 70, 239, 0.40);
+    --surface: rgba(255, 255, 255, 0.16);
+    --border-subtle: rgba(217, 70, 239, 0.35);
+    --text-color: #fdf4ff;
+    color: #fdf4ff;
+    --primary-color: rgba(217, 70, 239, 1);
+    --primary-color-80: rgba(217, 70, 239, 0.8);
+    --primary-color-60: rgba(217, 70, 239, 0.6);
+    --primary-color-40: rgba(217, 70, 239, 0.4);
+    --primary-color-20: rgba(217, 70, 239, 0.2);
+}
+body.theme-purple-pop .quicklinks-widget,
+body.theme-purple-pop .weather-widget,
+body.theme-purple-pop .reminder-widget,
+body.theme-purple-pop .notes-widget,
+body.theme-purple-pop .clocks-widget,
+body.theme-purple-pop .calendar-widget {
+    background: rgba(46, 16, 101, 0.40) !important;
+    border: 1px solid rgba(217, 70, 239, 0.40) !important;
+    backdrop-filter: blur(20px) saturate(170%);
+    -webkit-backdrop-filter: blur(20px) saturate(170%);
+    box-shadow: 0 8px 32px rgba(124, 58, 237, 0.35), 0 0 18px rgba(217, 70, 239, 0.18) !important;
+}
+body.theme-purple-pop .link-card:hover {
+    border-color: rgba(217, 70, 239, 0.7) !important;
+    box-shadow: 0 0 18px rgba(217, 70, 239, 0.45) !important;
+}
+
+/* === Neon: dark canvas with electric pink/cyan glow === */
+body.theme-neon {
+    --bg-gradient: linear-gradient(135deg, #0a0118 0%, #1a0033 50%, #001a33 100%);
+    --glass-bg: rgba(20, 0, 40, 0.55);
+    --glass-border: rgba(0, 255, 255, 0.45);
+    --surface: rgba(20, 0, 40, 0.55);
+    --border-subtle: rgba(0, 255, 255, 0.35);
+    --text-color: #f0f9ff;
+    color: #f0f9ff;
+    --primary-color: rgba(0, 255, 255, 1);
+    --primary-color-80: rgba(0, 255, 255, 0.8);
+    --primary-color-60: rgba(0, 255, 255, 0.6);
+    --primary-color-40: rgba(0, 255, 255, 0.4);
+    --primary-color-20: rgba(0, 255, 255, 0.2);
+}
+body.theme-neon .quicklinks-widget,
+body.theme-neon .weather-widget,
+body.theme-neon .reminder-widget,
+body.theme-neon .notes-widget,
+body.theme-neon .clocks-widget,
+body.theme-neon .calendar-widget {
+    background: rgba(20, 0, 40, 0.55) !important;
+    border: 1px solid rgba(0, 255, 255, 0.45) !important;
+    box-shadow: 0 0 20px rgba(255, 0, 200, 0.3), inset 0 0 20px rgba(0, 255, 255, 0.05) !important;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+}
+body.theme-neon .time,
+body.theme-neon .greeting,
+body.theme-neon .links-title {
+    text-shadow: 0 0 8px rgba(0, 255, 255, 0.6), 0 0 16px rgba(255, 0, 200, 0.4);
+}
+body.theme-neon .link-card:hover {
+    border-color: rgba(255, 0, 200, 0.7) !important;
+    box-shadow: 0 0 16px rgba(255, 0, 200, 0.5) !important;
+}
+
+/* === Candy: pastel rainbow stripes === */
+body.theme-candy {
+    --bg-gradient: linear-gradient(135deg, #fceabb 0%, #fbb1bd 25%, #c5e3f6 60%, #b8e0d2 100%);
+    --glass-bg: rgba(255, 255, 255, 0.55);
+    --glass-border: rgba(255, 255, 255, 0.7);
+    --surface: rgba(255, 255, 255, 0.55);
+    --border-subtle: rgba(255, 255, 255, 0.7);
+    --text-color: #4a3a55;
+    color: #4a3a55;
+    --primary-color: rgba(251, 177, 189, 1);
+    --primary-color-80: rgba(251, 177, 189, 0.8);
+    --primary-color-60: rgba(251, 177, 189, 0.6);
+    --primary-color-40: rgba(251, 177, 189, 0.4);
+    --primary-color-20: rgba(251, 177, 189, 0.2);
+}
+body.theme-candy .greeting,
+body.theme-candy .date,
+body.theme-candy .time,
+body.theme-candy .links-title,
+body.theme-candy .weather-desc,
+body.theme-candy .weather-location,
+body.theme-candy .link-name,
+body.theme-candy .weather-temp,
+body.theme-candy .reminder-text,
+body.theme-candy .reminder-date,
+body.theme-candy .notes-text,
+body.theme-candy h1, body.theme-candy h2, body.theme-candy h3, body.theme-candy h4 {
+    color: #3a2a45 !important;
+    text-shadow: none !important;
+}
+body.theme-candy .quicklinks-widget,
+body.theme-candy .weather-widget,
+body.theme-candy .reminder-widget,
+body.theme-candy .notes-widget,
+body.theme-candy .clocks-widget,
+body.theme-candy .calendar-widget {
+    background: rgba(255, 255, 255, 0.75) !important;
+    border: 1px solid rgba(255, 255, 255, 0.85) !important;
+    backdrop-filter: blur(16px) saturate(140%);
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+    box-shadow: 0 6px 20px rgba(251, 177, 189, 0.3) !important;
+}
+body.theme-candy #searchInput {
+    color: #3a2a45 !important;
+    background: rgba(255,255,255,0.85) !important;
+}
+body.theme-candy #searchInput::placeholder { color: rgba(58,42,69,0.55); }
+
+/* Candy: settings panel + dropdowns + tabs */
+body.theme-candy::before { display: none !important; }
+body.theme-candy .profile-panel,
+body.theme-candy .edit-panel {
+    background: #ffffff !important;
+    color: #3a2a45 !important;
+    border-left: 1px solid rgba(58,42,69,0.10) !important;
+}
+body.theme-candy .profile-panel * { color: #3a2a45; }
+body.theme-candy .profile-panel-header {
+    background: #fff5fa !important;
+    color: #3a2a45 !important;
+    border-bottom: 1px solid rgba(58,42,69,0.10) !important;
+}
+body.theme-candy .profile-panel-header h3,
+body.theme-candy .profile-panel-header h3 i,
+body.theme-candy .profile-close-btn { color: #3a2a45 !important; }
+body.theme-candy .profile-tabs { background: #ffffff !important; border-bottom: 1px solid rgba(58,42,69,0.10) !important; }
+body.theme-candy .profile-tab { background: transparent !important; color: rgba(58,42,69,0.55) !important; border-bottom: 2px solid transparent !important; }
+body.theme-candy .profile-tab.active { color: #3a2a45 !important; border-bottom-color: #ec4899 !important; background: transparent !important; }
+body.theme-candy .profile-tab.active i { color: #ec4899 !important; }
+body.theme-candy .profile-settings h5,
+body.theme-candy .collapsible-header { color: #3a2a45 !important; }
+body.theme-candy .collapsible-header { background: #fff5fa !important; border: 1px solid rgba(58,42,69,0.10) !important; }
+body.theme-candy .collapsible-content { background: #ffffff !important; }
+body.theme-candy select, body.theme-candy select option,
+body.theme-candy .profile-select, body.theme-candy .profile-select option,
+body.theme-candy .reminder-select, body.theme-candy .reminder-select option {
+    color: #3a2a45 !important; background-color: #ffffff !important;
+}
+body.theme-candy .setting-item label, body.theme-candy .setting-item span,
+body.theme-candy .setting-hint, body.theme-candy .setting-description,
+body.theme-candy .profile-input-group label, body.theme-candy .profile-input-group small { color: #3a2a45 !important; }
+body.theme-candy .profile-input, body.theme-candy .reminder-input {
+    background: #fff5fa !important; color: #3a2a45 !important;
+    border: 1px solid rgba(58,42,69,0.14) !important;
+}
+body.theme-candy .toggle-slider { background-color: rgba(58,42,69,0.20) !important; }
+body.theme-candy .toggle-switch input:checked + .toggle-slider { background-color: #ec4899 !important; }
+body.theme-candy .reminder-modal-content {
+    background: #ffffff !important; color: #3a2a45 !important;
+    border: 1px solid rgba(58,42,69,0.12) !important;
+}
+body.theme-candy .reminder-modal-header h3,
+body.theme-candy .reminder-modal-body,
+body.theme-candy .reminder-modal-body label,
+body.theme-candy .reminder-modal-body p,
+body.theme-candy .reminder-close-btn { color: #3a2a45 !important; }
+body.theme-candy .profile-dropdown-menu,
+body.theme-candy .command-palette-card {
+    background: #ffffff !important; color: #3a2a45 !important;
+    border: 1px solid rgba(58,42,69,0.12) !important;
+}
+body.theme-candy .dropdown-item { color: #3a2a45 !important; }
+body.theme-candy .dropdown-item:hover { background: rgba(58,42,69,0.05) !important; }
+body.theme-candy .dropdown-divider { background: rgba(58,42,69,0.10) !important; }
+body.theme-candy .profile-btn.primary, body.theme-candy .reminder-btn.primary {
+    background: #ec4899 !important; color: #ffffff !important; border: 1px solid #ec4899 !important;
+}
+body.theme-candy .profile-btn.secondary, body.theme-candy .reminder-btn.secondary {
+    background: transparent !important; color: #3a2a45 !important; border: 1px solid rgba(58,42,69,0.20) !important;
+}
+body.theme-candy .search-engine-tabs { background: rgba(255,255,255,0.5) !important; border: 1px solid rgba(58,42,69,0.10) !important; }
+body.theme-candy .search-tab { color: rgba(58,42,69,0.6) !important; }
+body.theme-candy .search-tab.active { background: rgba(255,255,255,0.85) !important; color: #3a2a45 !important; }
+body.theme-candy .link-icon { color: #3a2a45 !important; }
+body.theme-candy .profile-btn { background: rgba(255,255,255,0.7) !important; color: #3a2a45 !important; border: 1px solid rgba(58,42,69,0.10) !important; }
 
 .container {
     max-width: 1400px;
