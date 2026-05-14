@@ -6,10 +6,15 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "vercel-build": "echo 'Build complete'"
+    "vendor:fa": "node scripts/vendor-fontawesome.js",
+    "postinstall": "node scripts/vendor-fontawesome.js",
+    "vercel-build": "node scripts/vendor-fontawesome.js && echo 'Build complete'"
   },
   "dependencies": {
     "node-windows": "^1.0.0-beta.8"
+  },
+  "devDependencies": {
+    "@fortawesome/fontawesome-free": "^6.7.1"
   },
   "engines": {
     "node": ">=18.x"

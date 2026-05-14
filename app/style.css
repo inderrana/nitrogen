@@ -164,6 +164,68 @@ body.theme-cobalt {
     --primary-color-20: rgba(59, 130, 246, 0.2);
 }
 
+/* === Modern: vibrant aurora-like gradient with rich glass === */
+body.theme-modern {
+    --bg-gradient: linear-gradient(135deg, #0f172a 0%, #6366f1 45%, #ec4899 100%);
+    --glass-bg: rgba(255, 255, 255, 0.10);
+    --glass-border: rgba(255, 255, 255, 0.22);
+    --text-color: #f8fafc;
+    color: #f8fafc;
+    --primary-color: rgba(236, 72, 153, 1);
+    --primary-color-80: rgba(236, 72, 153, 0.8);
+    --primary-color-60: rgba(236, 72, 153, 0.6);
+    --primary-color-40: rgba(236, 72, 153, 0.4);
+    --primary-color-20: rgba(236, 72, 153, 0.2);
+}
+body.theme-modern .container,
+body.theme-modern .quicklinks-widget,
+body.theme-modern .weather-widget,
+body.theme-modern .reminder-widget,
+body.theme-modern .notes-widget,
+body.theme-modern .clocks-widget {
+    backdrop-filter: blur(22px) saturate(160%);
+    -webkit-backdrop-filter: blur(22px) saturate(160%);
+}
+
+/* === Minimal: clean, near-monochrome, hairline borders === */
+body.theme-minimal {
+    --bg-gradient: linear-gradient(180deg, #fafafa 0%, #f4f4f5 100%);
+    --glass-bg: rgba(255, 255, 255, 0.85);
+    --glass-border: rgba(0, 0, 0, 0.08);
+    --text-color: #18181b;
+    color: #18181b;
+    --primary-color: rgba(24, 24, 27, 1);
+    --primary-color-80: rgba(24, 24, 27, 0.8);
+    --primary-color-60: rgba(24, 24, 27, 0.6);
+    --primary-color-40: rgba(24, 24, 27, 0.4);
+    --primary-color-20: rgba(24, 24, 27, 0.2);
+}
+body.theme-minimal .greeting,
+body.theme-minimal .date,
+body.theme-minimal .time,
+body.theme-minimal .links-title,
+body.theme-minimal .weather-desc,
+body.theme-minimal .weather-location,
+body.theme-minimal .link-name { color: #18181b; }
+body.theme-minimal .quicklinks-widget,
+body.theme-minimal .weather-widget,
+body.theme-minimal .reminder-widget,
+body.theme-minimal .notes-widget,
+body.theme-minimal .clocks-widget,
+body.theme-minimal .search-container,
+body.theme-minimal .link-card {
+    background: rgba(255, 255, 255, 0.75) !important;
+    border: 1px solid rgba(0,0,0,0.08) !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+body.theme-minimal #searchInput {
+    color: #18181b;
+    background: rgba(255,255,255,0.9);
+}
+body.theme-minimal #searchInput::placeholder { color: rgba(24,24,27,0.45); }
+
 .container {
     max-width: 1400px;
     margin: 0 auto;
@@ -2438,6 +2500,14 @@ body.theme-cobalt {
     font-size: 0.8rem;
     margin-bottom: 0.625rem;
     font-weight: 500;
+}
+
+.setting-item .setting-hint {
+    display: block;
+    margin-top: 0.4rem;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.72rem;
+    line-height: 1.35;
 }
 
 .toggle-label {
@@ -5035,6 +5105,254 @@ body.theme-arctic .reminder-badge.due { color: #b91c1c; border-color: rgba(185,2
 .clocks-widget .clocks-list { flex: 1; min-height: 0; }
 /* Calendar grid grows with widget */
 .calendar-widget .calendar-grid { flex: 1; }
+
+/* ===========================================================
+   Pet companion (SVG sprite with animated body parts)
+   =========================================================== */
+.pet-container {
+    position: fixed;
+    left: 0;
+    bottom: 0;
+    width: 100vw;
+    height: 0;
+    pointer-events: none;
+    z-index: 50;
+}
+
+.pet-sprite {
+    --bob-amp: 3px;
+    position: absolute;
+    bottom: 4px;
+    left: 0;
+    width: 110px;
+    height: 88px;
+    cursor: pointer;
+    user-select: none;
+    pointer-events: auto;
+    will-change: transform, left, bottom;
+    filter: drop-shadow(0 6px 8px rgba(0,0,0,0.25));
+    transform-origin: 50% 100%;
+}
+.pet-sprite:hover { filter: drop-shadow(0 0 8px rgba(255,255,255,0.55)) brightness(1.05); }
+.pet-sprite.flip .pet-svg { transform: scaleX(-1); transform-origin: 50% 50%; }
+.pet-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+
+/* Speech bubble */
+.pet-bubble {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%) translateY(-2px);
+    background: rgba(255,255,255,0.96);
+    color: #1f2937;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 6px 12px;
+    border-radius: 14px;
+    white-space: nowrap;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease, transform 0.25s ease;
+}
+.pet-bubble.show { opacity: 1; transform: translateX(-50%) translateY(-10px); }
+.pet-bubble::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: rgba(255,255,255,0.96);
+}
+
+/* ----- Body part keyframes ----- */
+@keyframes pet-bob {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(calc(var(--bob-amp) * -1)); }
+}
+@keyframes pet-breathe {
+    0%, 100% { transform: scale(1, 1); }
+    50%      { transform: scale(1.04, 0.97); }
+}
+@keyframes pet-leg-front {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50%      { transform: translateY(-2px) rotate(-12deg); }
+}
+@keyframes pet-leg-back {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50%      { transform: translateY(-2px) rotate(12deg); }
+}
+@keyframes pet-tail-wag {
+    0%, 100% { transform: rotate(-12deg); }
+    50%      { transform: rotate(18deg); }
+}
+@keyframes pet-tail-swish {
+    0%, 100% { transform: rotate(0deg); }
+    50%      { transform: rotate(15deg); }
+}
+@keyframes pet-head-bob {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50%      { transform: translateY(-1px) rotate(-3deg); }
+}
+@keyframes pet-wing-flap {
+    0%, 100% { transform: rotate(0deg) scaleY(1); }
+    50%      { transform: rotate(-25deg) scaleY(1.1); }
+}
+@keyframes pet-blink {
+    0%, 100% { transform: scaleY(1); }
+    50%      { transform: scaleY(0.1); }
+}
+
+/* Sprite-level bob */
+.pet-sprite.idle    { animation: pet-bob 2.6s ease-in-out infinite; }
+.pet-sprite.walking { animation: pet-bob 0.55s ease-in-out infinite; }
+
+/* Body breathing */
+.pet-sprite .pet-body { animation: pet-breathe 3s ease-in-out infinite; transform-origin: center; }
+
+/* Tails */
+.pet-sprite.idle .pet-tail    { animation: pet-tail-swish 2.4s ease-in-out infinite; }
+.pet-sprite.walking .pet-tail { animation: pet-tail-wag 0.5s ease-in-out infinite; }
+
+/* Head subtle */
+.pet-sprite.idle .pet-head    { animation: pet-head-bob 3.2s ease-in-out infinite; }
+
+/* Legs (only animate while walking) */
+.pet-sprite.walking .pet-leg-fl,
+.pet-sprite.walking .pet-leg-br { animation: pet-leg-front 0.45s ease-in-out infinite; transform-origin: 50% 0%; }
+.pet-sprite.walking .pet-leg-fr,
+.pet-sprite.walking .pet-leg-bl { animation: pet-leg-back 0.45s ease-in-out infinite; transform-origin: 50% 0%; }
+
+/* Dragon wing always flapping */
+.pet-sprite.pet-dragon .pet-wing { animation: pet-wing-flap 0.55s ease-in-out infinite; }
+.pet-sprite.pet-dragon.idle .pet-wing { animation-duration: 0.85s; }
+
+/* Blinking */
+.pet-sprite.blink .pet-eye { animation: pet-blink 0.16s ease-in-out; transform-origin: center; }
+
+/* ----- Click trick animations (whole sprite) ----- */
+@keyframes pet-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes pet-jump {
+    0%, 100% { transform: translateY(0); }
+    40%      { transform: translateY(-50px) scale(1.05); }
+    60%      { transform: translateY(-35px); }
+}
+@keyframes pet-wiggle {
+    0%, 100% { transform: rotate(0deg); }
+    25%      { transform: rotate(-15deg); }
+    75%      { transform: rotate(15deg); }
+}
+@keyframes pet-pop {
+    0%   { transform: scale(1); }
+    50%  { transform: scale(1.35); }
+    100% { transform: scale(1); }
+}
+@keyframes pet-flip-trick {
+    0%   { transform: rotate(0deg) scale(1); }
+    50%  { transform: rotate(180deg) scale(1.18); }
+    100% { transform: rotate(360deg) scale(1); }
+}
+@keyframes pet-sit {
+    0%   { transform: translateY(0); }
+    100% { transform: translateY(8px) scaleY(0.92); }
+}
+@keyframes pet-dance {
+    0%, 100% { transform: translateX(0) rotate(0deg); }
+    20%      { transform: translateX(-6px) rotate(-8deg); }
+    50%      { transform: translateX(6px) rotate(8deg); }
+    80%      { transform: translateX(-3px) rotate(-4deg); }
+}
+@keyframes pet-breathe-trick {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.08) translateX(4px); }
+}
+
+.pet-sprite.spin       { animation: pet-spin 0.7s linear; }
+.pet-sprite.jump       { animation: pet-jump 0.7s ease-out; }
+.pet-sprite.wiggle     { animation: pet-wiggle 0.5s ease-in-out 2; }
+.pet-sprite.pop        { animation: pet-pop 0.4s ease-out; }
+.pet-sprite.flipTrick  { animation: pet-flip-trick 0.8s ease-in-out; }
+.pet-sprite.sit        { animation: pet-sit 0.5s ease-out forwards; }
+.pet-sprite.dance      { animation: pet-dance 0.6s ease-in-out 3; }
+.pet-sprite.breathe    { animation: pet-breathe-trick 0.5s ease-in-out 2; }
+
+/* During tricks, keep flip mirroring */
+.pet-sprite.flip.spin,
+.pet-sprite.flip.jump,
+.pet-sprite.flip.wiggle,
+.pet-sprite.flip.pop,
+.pet-sprite.flip.flipTrick,
+.pet-sprite.flip.sit,
+.pet-sprite.flip.dance,
+.pet-sprite.flip.breathe { /* SVG flip handled by .flip .pet-svg rule above */ }
+
+/* Particles */
+.pet-particle {
+    position: absolute;
+    font-size: 18px;
+    pointer-events: none;
+    animation: pet-particle-fly 1.2s ease-out forwards;
+    will-change: transform, opacity;
+}
+.pet-particle.pet-fire { font-size: 22px; animation-duration: 1s; }
+.pet-particle.pet-sleep {
+    color: #a5b4fc;
+    font-weight: 700;
+    font-style: italic;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    animation: pet-particle-sleep 2.4s ease-out forwards;
+}
+@keyframes pet-particle-fly {
+    0%   { opacity: 1; transform: translate(0, 0) scale(0.6); }
+    100% { opacity: 0; transform: translate(var(--dx, 0), var(--dy, -60px)) scale(1.2); }
+}
+@keyframes pet-particle-sleep {
+    0%   { opacity: 0; transform: translate(0, 0) scale(0.4) rotate(-8deg); }
+    20%  { opacity: 1; }
+    100% { opacity: 0; transform: translate(var(--dx, 0), var(--dy, -50px)) scale(1.3) rotate(8deg); }
+}
+
+/* Sleeping state */
+.pet-sprite.sleeping {
+    animation: pet-sleep-bob 4s ease-in-out infinite !important;
+}
+.pet-sprite.sleeping .pet-body { animation: pet-sleep-breathe 4s ease-in-out infinite !important; }
+.pet-sprite.sleeping .pet-tail,
+.pet-sprite.sleeping .pet-head,
+.pet-sprite.sleeping .pet-leg-fl,
+.pet-sprite.sleeping .pet-leg-fr,
+.pet-sprite.sleeping .pet-leg-bl,
+.pet-sprite.sleeping .pet-leg-br,
+.pet-sprite.sleeping .pet-wing { animation: none !important; }
+.pet-sprite.sleeping .pet-eye { transform: scaleY(0.1); transform-origin: center; }
+@keyframes pet-sleep-bob {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-1px); }
+}
+@keyframes pet-sleep-breathe {
+    0%, 100% { transform: scale(1, 1); }
+    50%      { transform: scale(1.025, 0.985); }
+}
+
+/* Hiding behind a widget: slight downshift so only the top peeks out */
+.pet-sprite.behind-widget {
+    z-index: 1;
+    opacity: 0.95;
+}
+
+/* Sitting on top of a widget */
+.pet-sprite.on-widget {
+    filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
+}
+
+/* Reduced motion: keep pet visible but freeze decorations */
+body.reduced-motion .pet-sprite,
+body.reduced-motion .pet-sprite *,
+@media (prefers-reduced-motion: reduce) {
+    .pet-sprite,
+    .pet-sprite * { animation: none !important; transition: none !important; }
+}
 .calendar-widget .calendar-grid .cal-day,
 .calendar-widget .calendar-grid .cal-dow { display: flex; align-items: center; justify-content: center; }
 

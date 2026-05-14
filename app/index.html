@@ -12,15 +12,18 @@
     <title>Nitrogen</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="manifest" href="manifest.webmanifest">
-    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-    <link rel="dns-prefetch" href="https://api.openweathermap.org">
     <link rel="stylesheet" href="style.css">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.1/css/all.min.css" rel="stylesheet" integrity="sha512-5Hs3dF2AEPkpNAR7UiOHba+lRSJNeM2ECkwxUIxC1Q/FLycGTbNapWXB4tP889k5T5Ju8fs4b1P5z/iB4nMfSQ==" crossorigin="anonymous">
-    <noscript><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.1/css/all.min.css" rel="stylesheet" integrity="sha512-5Hs3dF2AEPkpNAR7UiOHba+lRSJNeM2ECkwxUIxC1Q/FLycGTbNapWXB4tP889k5T5Ju8fs4b1P5z/iB4nMfSQ==" crossorigin="anonymous"></noscript>
+    <!-- Self-hosted Font Awesome (vendored from @fortawesome/fontawesome-free via scripts/vendor-fontawesome.js).
+         If the local copy is missing (fresh clone with no `npm install`), fa-fallback.js loads CDN as a fallback. -->
+    <link id="faStylesheet" href="vendor/fontawesome/css/all.min.css" rel="stylesheet">
+    <noscript><link href="vendor/fontawesome/css/all.min.css" rel="stylesheet"></noscript>
+    <script src="fa-fallback.js" defer></script>
     <script src="crypto-utils.js" defer></script>
     <script src="user-profile.js" defer></script>
 </head>
 <body>
+    <!-- Friend companion (rendered/managed by script.js → PetCompanion) -->
+    <div id="petContainer" class="pet-container" aria-hidden="true"></div>
     <div class="container">
         <!-- User Profile Dropdown -->
         <div class="top-controls">
@@ -474,6 +477,43 @@
                         <i class="fas fa-sync-alt"></i> Sync Now
                     </button>
                 </div>
+
+                <div class="profile-settings">
+                    <h5><i class="fas fa-shield-halved"></i> Privacy</h5>
+
+                    <div class="setting-item">
+                        <label class="toggle-label">
+                            <span>Search suggestions (DuckDuckGo)</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="searchSuggestionsToggle">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </label>
+                        <small class="setting-hint">When off, no keystrokes are sent to any third party while typing in search.</small>
+                    </div>
+
+                    <div class="setting-item">
+                        <label class="toggle-label">
+                            <span>Allow third-party CDN (Font Awesome)</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="allowCdnToggle" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </label>
+                        <small class="setting-hint">When off, the icon CSS link is removed on next reload. You'll see broken icons unless you self-host Font Awesome (see README).</small>
+                    </div>
+
+                    <div class="setting-item">
+                        <label class="toggle-label">
+                            <span>Send Referer header</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="sendReferrerToggle">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </label>
+                        <small class="setting-hint">When off (default), the app never reveals the page URL to outbound requests.</small>
+                    </div>
+                </div>
             </div>
             <!-- End Settings Tab Content -->
             
@@ -497,9 +537,24 @@
                             <option value="steel">Steel Blue</option>
                             <option value="cobalt">Cobalt Blue</option>
                             <option value="arctic">Arctic White</option>
+                            <option value="modern">Modern Aurora</option>
+                            <option value="minimal">Minimal Light</option>
                             <option value="weather">Weather Dynamic</option>
                             <option value="weather-dark">Weather Dynamic (Dark)</option>
                         </select>
+                    </div>
+
+                    <!-- Friend companion -->
+                    <div class="setting-item">
+                        <label for="customizePetSelect">Friend</label>
+                        <select class="profile-select" id="customizePetSelect">
+                            <option value="none">None</option>
+                            <option value="cat">🐱 Cat</option>
+                            <option value="turtle">🐢 Turtle</option>
+                            <option value="unicorn">🦄 Unicorn</option>
+                            <option value="dragon">🐲 Baby Dragon</option>
+                        </select>
+                        <small class="setting-hint">Your friend will wander in occasionally!</small>
                     </div>
 
                     <!-- Collapsible Effects Section -->
@@ -999,5 +1054,6 @@
     </div>
 
     <script src="script.js" defer></script>
+    <script src="pet-companion.js" defer></script>
 </body>
 </html>

@@ -94,6 +94,9 @@ class NewTabHomepage {
 
         // Apply saved widget visibility (after all widgets exist)
         this.applyWidgetVisibility();
+
+        // Apply privacy preferences as early as possible (referrer meta + CDN gate)
+        try { this.initPrivacyToggles(); } catch {}
         
         // Initialize customize panel (in case page was refreshed with panel open)
         setTimeout(() => {
@@ -1902,7 +1905,7 @@ class NewTabHomepage {
 
     changeTheme(themeName, saveToProfile = true) {
         // Remove existing theme classes
-        const themes = ['theme-ocean', 'theme-sunset', 'theme-forest', 'theme-purple', 'theme-rose', 'theme-dark', 'theme-midnight', 'theme-charcoal', 'theme-navy', 'theme-steel', 'theme-cobalt', 'theme-arctic', 'theme-weather', 'theme-weather-dark'];
+        const themes = ['theme-ocean', 'theme-sunset', 'theme-forest', 'theme-purple', 'theme-rose', 'theme-dark', 'theme-midnight', 'theme-charcoal', 'theme-navy', 'theme-steel', 'theme-cobalt', 'theme-arctic', 'theme-modern', 'theme-minimal', 'theme-weather', 'theme-weather-dark'];
         themes.forEach(theme => document.body.classList.remove(theme));
         
         // Remove inline weather theme styles to allow CSS themes to work
@@ -3317,7 +3320,30 @@ class NewTabHomepage {
             quicklinksWidgetFrostToggle.dataset.initialized = 'true';
             this.log('[CUSTOMIZE] Quick Links widget frost toggle initialized');
         }
-        
+
+        // ---- Privacy toggles ----
+        this.initPrivacyToggles();
+
+        // ---- Pet companion selector ----
+        const petSelect = document.getElementById('customizePetSelect');
+        if (petSelect && !petSelect.dataset.initialized) {
+            try {
+                const stored = localStorage.getItem('petCompanion') || 'none';
+                petSelect.value = stored;
+            } catch {}
+            petSelect.addEventListener('change', (e) => {
+                const v = e.target.value;
+                if (window.petCompanion && typeof window.petCompanion.setPet === 'function') {
+                    window.petCompanion.setPet(v);
+                } else {
+                    try { localStorage.setItem('petCompanion', v); } catch {}
+                }
+                if (v !== 'none') this.toast('Friend enabled — they\'ll wander in soon!', 'success', 2000);
+                else this.toast('Friend disabled', 'info', 1500);
+            });
+            petSelect.dataset.initialized = 'true';
+        }
+
         // Add link button
         const addLinkBtn = document.getElementById('customizeAddLinkBtn');
         if (addLinkBtn && !addLinkBtn.dataset.initialized) {
@@ -5419,29 +5445,69 @@ class NewTabHomepage {
 
         try {
             const user = this.userProfileManager.getCurrentUser();
-            
-            // Gather all user customizations
-            const newTabContent = localStorage.getItem('newTabContent');
-            const selectedTheme = localStorage.getItem('selectedTheme');
-            const reminders = localStorage.getItem('reminders');
-            const weatherEffectsEnabled = localStorage.getItem('weatherEffectsEnabled');
-            const weatherCloudsEnabled = localStorage.getItem('weatherCloudsEnabled');
-            
+
+            // Helper: read JSON from localStorage with fallback
+            const readJson = (key, fallback = null) => {
+                try {
+                    const v = localStorage.getItem(key);
+                    return v == null ? fallback : JSON.parse(v);
+                } catch { return fallback; }
+            };
+            const readStr = (key) => {
+                try { return localStorage.getItem(key); } catch { return null; }
+            };
+
             const dataToExport = {
                 profile: user,
                 customizations: {
-                    newTabContent: newTabContent ? JSON.parse(newTabContent) : null,
-                    selectedTheme: selectedTheme || 'ocean',
-                    reminders: reminders ? JSON.parse(reminders) : [],
+                    // Core content
+                    newTabContent: readJson('newTabContent'),
+                    selectedTheme: readStr('selectedTheme') || 'ocean',
+                    reminders: readJson('reminders', []),
+                    quickNotes: readStr('quickNotes') || '',
+                    notesCollapsed: readStr('notesCollapsed') || '0',
+
+                    // Widgets
+                    widgetVisibility: readJson('widgetVisibility'),
+                    widgetHeaderVisibility: readJson('widgetHeaderVisibility'),
+                    widgetPositions: readJson('widgetPositions'),
+                    customizationSettings: readJson('customizationSettings'),
+
+                    // Per-widget frost effects
+                    weatherWidgetFrostEnabled: readStr('weatherWidgetFrostEnabled'),
+                    remindersWidgetFrostEnabled: readStr('remindersWidgetFrostEnabled'),
+                    quicklinksWidgetFrostEnabled: readStr('quicklinksWidgetFrostEnabled'),
+
+                    // Weather
                     weatherLocation: document.getElementById('weatherLocation')?.textContent || 'New York',
-                    // greeting is NOT exported - always based on time/season/weather
-                    linksTitle: document.querySelector('.links-title')?.textContent || 'Quick Links',
-                    weatherEffectsEnabled: weatherEffectsEnabled === 'true',
-                    weatherCloudsEnabled: weatherCloudsEnabled === 'true',
-                    weatherRefreshInterval: this.weatherRefreshInterval || 30
+                    weatherEffectsEnabled: readStr('weatherEffectsEnabled') === 'true',
+                    weatherCloudsEnabled: readStr('weatherCloudsEnabled') === 'true',
+                    weatherRefreshInterval: this.weatherRefreshInterval || 30,
+                    weatherApiProvider: readStr('weatherApiProvider'),
+                    // weatherApiKey intentionally NOT exported (sensitive credential)
+
+                    // World clocks & search engines
+                    worldClocks: readJson('worldClocks'),
+                    customEngines: readJson('customEngines', []),
+
+                    // Accessibility & security prefs
+                    reducedMotion: readStr('reducedMotion'),
+                    autoLockMs: readStr('autoLockMs'),
+
+                    // Privacy prefs
+                    searchSuggestionsEnabled: readStr('searchSuggestionsEnabled'),
+                    allowCdn: readStr('allowCdn'),
+                    sendReferrer: readStr('sendReferrer'),
+
+                    // Pet companion
+                    petCompanion: readStr('petCompanion'),
+
+                    // Misc UI
+                    linksTitle: document.querySelector('.links-title')?.textContent || 'Quick Links'
+                    // greeting NOT exported - always derived from time/season/weather
                 },
                 exportDate: new Date().toISOString(),
-                version: '2.0'
+                version: '2.1'
             };
 
             const dataStr = JSON.stringify(dataToExport, null, 2);
@@ -5531,6 +5597,19 @@ class NewTabHomepage {
                     this.loadUserProfile();
                     this.showSaveNotification('Profile and settings imported successfully');
                     this.closeProfilePanelFn();
+
+                    // Some imported settings (widget positions, frost effects, CDN gating)
+                    // need a fresh page to fully take effect.
+                    setTimeout(() => {
+                        try {
+                            this.confirm({
+                                title: 'Reload now?',
+                                message: 'Some imported settings (widget positions, frost effects) need a page reload to fully apply. Reload now?',
+                                okLabel: 'Reload',
+                                cancelLabel: 'Later'
+                            }).then((ok) => { if (ok) location.reload(); });
+                        } catch {}
+                    }, 600);
                 }
             } else {
                 throw new Error('Invalid file format');
@@ -5629,6 +5708,100 @@ class NewTabHomepage {
                 localStorage.setItem('reminders', JSON.stringify(customizations.reminders));
                 this.reminders = customizations.reminders;
                 this.renderReminders();
+            }
+
+            // ---- Newer keys (v2.1+) ----
+
+            // Quick notes
+            if (typeof customizations.quickNotes === 'string') {
+                try { localStorage.setItem('quickNotes', customizations.quickNotes); } catch {}
+                const notesTa = document.getElementById('notesText');
+                if (notesTa) notesTa.value = customizations.quickNotes;
+            }
+            if (typeof customizations.notesCollapsed === 'string') {
+                try { localStorage.setItem('notesCollapsed', customizations.notesCollapsed); } catch {}
+            }
+
+            // Widget visibility / per-widget header visibility
+            if (customizations.widgetVisibility && typeof customizations.widgetVisibility === 'object') {
+                try { localStorage.setItem('widgetVisibility', JSON.stringify(customizations.widgetVisibility)); } catch {}
+                this.widgetVisibility = customizations.widgetVisibility;
+            }
+            if (customizations.widgetHeaderVisibility && typeof customizations.widgetHeaderVisibility === 'object') {
+                try { localStorage.setItem('widgetHeaderVisibility', JSON.stringify(customizations.widgetHeaderVisibility)); } catch {}
+            }
+            if (typeof this.applyWidgetVisibility === 'function') {
+                try { this.applyWidgetVisibility(); } catch {}
+            }
+
+            // Widget positions
+            if (customizations.widgetPositions && typeof customizations.widgetPositions === 'object') {
+                try { localStorage.setItem('widgetPositions', JSON.stringify(customizations.widgetPositions)); } catch {}
+                if (typeof this.applyWidgetPositions === 'function') {
+                    try { this.applyWidgetPositions(customizations.widgetPositions); } catch {}
+                }
+            }
+
+            // Customization settings (catch-all)
+            if (customizations.customizationSettings && typeof customizations.customizationSettings === 'object') {
+                try { localStorage.setItem('customizationSettings', JSON.stringify(customizations.customizationSettings)); } catch {}
+            }
+
+            // Per-widget frost effects
+            const frostKeys = ['weatherWidgetFrostEnabled', 'remindersWidgetFrostEnabled', 'quicklinksWidgetFrostEnabled'];
+            frostKeys.forEach(k => {
+                if (customizations[k] != null) {
+                    try { localStorage.setItem(k, String(customizations[k])); } catch {}
+                    // Mirror onto instance flag if it exists (camelCase property matches the key here)
+                    if (k in this) this[k] = customizations[k] === 'true' || customizations[k] === true;
+                }
+            });
+
+            // Weather provider (NOT the API key — keys are sensitive and not exported)
+            if (customizations.weatherApiProvider) {
+                try { localStorage.setItem('weatherApiProvider', customizations.weatherApiProvider); } catch {}
+            }
+
+            // World clocks
+            if (Array.isArray(customizations.worldClocks)) {
+                try { localStorage.setItem('worldClocks', JSON.stringify(customizations.worldClocks)); } catch {}
+                this.clocks = customizations.worldClocks;
+                if (typeof this.initWorldClocks === 'function') { try { this.initWorldClocks(); } catch {} }
+            }
+
+            // Custom search engines
+            if (Array.isArray(customizations.customEngines)) {
+                try { localStorage.setItem('customEngines', JSON.stringify(customizations.customEngines)); } catch {}
+                if (typeof this.refreshSearchEngineMenu === 'function') { try { this.refreshSearchEngineMenu(); } catch {} }
+            }
+
+            // Reduced motion preference
+            if (customizations.reducedMotion != null) {
+                try { localStorage.setItem('reducedMotion', String(customizations.reducedMotion)); } catch {}
+                document.body.classList.toggle('reduced-motion', String(customizations.reducedMotion) === '1');
+            }
+
+            // Auto-lock interval
+            if (customizations.autoLockMs != null) {
+                try { localStorage.setItem('autoLockMs', String(customizations.autoLockMs)); } catch {}
+            }
+
+            // Privacy prefs
+            ['searchSuggestionsEnabled', 'allowCdn', 'sendReferrer'].forEach(k => {
+                if (customizations[k] != null) {
+                    try { localStorage.setItem(k, String(customizations[k])); } catch {}
+                }
+            });
+            try { this.initPrivacyToggles(); } catch {}
+
+            // Pet companion
+            if (customizations.petCompanion != null) {
+                try { localStorage.setItem('petCompanion', String(customizations.petCompanion)); } catch {}
+                if (window.petCompanion && typeof window.petCompanion.setPet === 'function') {
+                    try { window.petCompanion.setPet(String(customizations.petCompanion)); } catch {}
+                }
+                const petSel = document.getElementById('customizePetSelect');
+                if (petSel) petSel.value = String(customizations.petCompanion);
             }
 
         } catch (error) {
@@ -5827,6 +6000,8 @@ class NewTabHomepage {
         };
 
         const fetchSuggestions = (q) => {
+            // Privacy: respect search-suggestions opt-out
+            if (!this.isSearchSuggestionsEnabled()) return;
             if (abortCtrl) abortCtrl.abort();
             abortCtrl = new AbortController();
             fetch(`https://duckduckgo.com/ac/?q=${encodeURIComponent(q)}&type=list`, {
@@ -5894,6 +6069,93 @@ class NewTabHomepage {
             const q = input.value.trim();
             if (q.length >= 2) fetchSuggestions(q);
         });
+    }
+
+    // ---- Privacy preferences ----
+
+    isSearchSuggestionsEnabled() {
+        try {
+            const v = localStorage.getItem('searchSuggestionsEnabled');
+            // Default ON for backward compat
+            return v == null ? true : v === 'true';
+        } catch { return true; }
+    }
+
+    isCdnAllowed() {
+        try {
+            const v = localStorage.getItem('allowCdn');
+            return v == null ? true : v === 'true';
+        } catch { return true; }
+    }
+
+    isReferrerEnabled() {
+        try {
+            const v = localStorage.getItem('sendReferrer');
+            return v === 'true'; // Default OFF (privacy-first)
+        } catch { return false; }
+    }
+
+    /**
+     * Wire up the Privacy section in the Settings tab.
+     * Idempotent — safe to call repeatedly.
+     */
+    initPrivacyToggles() {
+        // Search suggestions toggle
+        const sugToggle = document.getElementById('searchSuggestionsToggle');
+        if (sugToggle && !sugToggle.dataset.initialized) {
+            sugToggle.checked = this.isSearchSuggestionsEnabled();
+            sugToggle.addEventListener('change', (e) => {
+                try { localStorage.setItem('searchSuggestionsEnabled', String(e.target.checked)); } catch {}
+                this.toast(e.target.checked ? 'Search suggestions enabled' : 'Search suggestions disabled', 'success', 1800);
+            });
+            sugToggle.dataset.initialized = 'true';
+        }
+
+        // CDN allowed toggle
+        const cdnToggle = document.getElementById('allowCdnToggle');
+        if (cdnToggle && !cdnToggle.dataset.initialized) {
+            cdnToggle.checked = this.isCdnAllowed();
+            cdnToggle.addEventListener('change', (e) => {
+                try { localStorage.setItem('allowCdn', String(e.target.checked)); } catch {}
+                if (!e.target.checked) {
+                    // Remove existing FA stylesheet now (will not reload until refresh)
+                    document.querySelectorAll('link[rel="stylesheet"][href*="cdnjs.cloudflare.com"]').forEach(el => el.remove());
+                    document.querySelectorAll('link[rel="preconnect"][href*="cdnjs.cloudflare.com"]').forEach(el => el.remove());
+                    document.querySelectorAll('link[rel="dns-prefetch"][href*="openweathermap.org"]').forEach(el => el.remove());
+                }
+                this.toast('Reload the page for full effect', 'info', 2200);
+            });
+            cdnToggle.dataset.initialized = 'true';
+
+            // Apply on first load if disabled
+            if (!this.isCdnAllowed()) {
+                document.querySelectorAll('link[rel="stylesheet"][href*="cdnjs.cloudflare.com"]').forEach(el => el.remove());
+                document.querySelectorAll('link[rel="preconnect"][href*="cdnjs.cloudflare.com"]').forEach(el => el.remove());
+            }
+        }
+
+        // Referrer toggle
+        const refToggle = document.getElementById('sendReferrerToggle');
+        if (refToggle && !refToggle.dataset.initialized) {
+            refToggle.checked = this.isReferrerEnabled();
+            refToggle.addEventListener('change', (e) => {
+                try { localStorage.setItem('sendReferrer', String(e.target.checked)); } catch {}
+                this.applyReferrerPolicy();
+                this.toast(e.target.checked ? 'Referrer enabled' : 'Referrer suppressed', 'success', 1800);
+            });
+            refToggle.dataset.initialized = 'true';
+            this.applyReferrerPolicy();
+        }
+    }
+
+    applyReferrerPolicy() {
+        let meta = document.querySelector('meta[name="referrer"]');
+        if (!meta) {
+            meta = document.createElement('meta');
+            meta.name = 'referrer';
+            document.head.appendChild(meta);
+        }
+        meta.content = this.isReferrerEnabled() ? 'strict-origin-when-cross-origin' : 'no-referrer';
     }
 
     /**
@@ -6558,7 +6820,7 @@ class NewTabHomepage {
         const items = [];
 
         // Themes
-        const themes = ['ocean','sunset','forest','purple','rose','dark','midnight','charcoal','navy','steel','cobalt','arctic','weather','weather-dark'];
+        const themes = ['ocean','sunset','forest','purple','rose','dark','midnight','charcoal','navy','steel','cobalt','arctic','modern','minimal','weather','weather-dark'];
         themes.forEach(t => items.push({
             kind: 'Theme', icon: 'fa-palette', label: 'Switch theme: ' + t,
             run: () => { try { this.changeTheme(t, true); this.toast('Theme: ' + t, 'success', 1500); } catch(_) {} }
