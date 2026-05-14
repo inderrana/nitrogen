@@ -1490,6 +1490,15 @@ body.theme-cobalt {
     margin-bottom: 1.5rem;
 }
 
+/* Quick-pick preset dropdown inside Add Link modal */
+#linkModalPresetsSelect {
+    cursor: pointer;
+}
+#linkModalPresetsSelect option {
+    background: #1a1a2e;
+    color: #fff;
+}
+
 .reminder-input-group label {
     display: block;
     color: rgba(255, 255, 255, 0.8);
@@ -2027,8 +2036,9 @@ body.theme-cobalt {
 }
 
 .collapsible-content.active {
-    max-height: 500px;
+    max-height: 2000px;
     padding: 0.5rem 0.25rem 0;
+    overflow-y: auto;
 }
 
 /* Compact Setting Items */

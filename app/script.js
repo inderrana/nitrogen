@@ -1516,7 +1516,7 @@ class NewTabHomepage {
                 if (!isAppProtocol && !validUrl.startsWith('http://') && !validUrl.startsWith('https://')) {
                     validUrl = 'https://' + validUrl;
                 }
-                const finalIcon = icon.trim() || (isAppProtocol ? 'fas fa-desktop' : 'fas fa-link');
+                const finalIcon = icon.trim() || this.guessIconForUrl(validUrl);
                 this.createAndAddLinkElement(linksGrid, validUrl, name.trim(), finalIcon, { newTab });
                 this.updateGridLayout();
                 this.saveContent();
@@ -3597,6 +3597,201 @@ class NewTabHomepage {
         return tokens.slice(0, 4).join(' ');
     }
 
+    /**
+     * Guess a Font Awesome icon class from a URL/protocol when the user didn't supply one.
+     * Returns a string like "fab fa-github" or "fas fa-link".
+     */
+    guessIconForUrl(url) {
+        if (!url || typeof url !== 'string') return 'fas fa-link';
+        const u = url.trim().toLowerCase();
+
+        // App / non-http protocols first
+        const protoMatch = u.match(/^([a-z][a-z0-9+\-.]*):/);
+        if (protoMatch) {
+            const scheme = protoMatch[1];
+            const protoMap = {
+                mailto: 'fas fa-envelope',
+                tel: 'fas fa-phone',
+                sms: 'fas fa-comment-sms',
+                file: 'fas fa-folder-open',
+                ftp: 'fas fa-server',
+                ftps: 'fas fa-server',
+                whatsapp: 'fab fa-whatsapp',
+                spotify: 'fab fa-spotify',
+                steam: 'fab fa-steam',
+                vscode: 'fas fa-code',
+                obsidian: 'fas fa-book',
+                slack: 'fab fa-slack',
+                zoommtg: 'fas fa-video',
+                tg: 'fab fa-telegram',
+                msteams: 'fas fa-users',
+                'ms-settings': 'fas fa-cog'
+            };
+            if (scheme !== 'http' && scheme !== 'https' && protoMap[scheme]) return protoMap[scheme];
+        }
+
+        // Extract hostname for http(s) URLs (or schemeless)
+        let host = '';
+        try {
+            const parsed = new URL(u.startsWith('http') ? u : 'https://' + u);
+            host = parsed.hostname.replace(/^www\./, '');
+        } catch { return 'fas fa-link'; }
+
+        // Domain-keyword → FA brand/solid icon table (longest match wins)
+        const map = [
+            ['github.', 'fab fa-github'],
+            ['gitlab.', 'fab fa-gitlab'],
+            ['bitbucket.', 'fab fa-bitbucket'],
+            ['stackoverflow.', 'fab fa-stack-overflow'],
+            ['stackexchange.', 'fab fa-stack-exchange'],
+            ['youtube.', 'fab fa-youtube'],
+            ['youtu.be', 'fab fa-youtube'],
+            ['twitter.', 'fab fa-x-twitter'],
+            ['x.com', 'fab fa-x-twitter'],
+            ['facebook.', 'fab fa-facebook'],
+            ['fb.com', 'fab fa-facebook'],
+            ['instagram.', 'fab fa-instagram'],
+            ['linkedin.', 'fab fa-linkedin'],
+            ['reddit.', 'fab fa-reddit'],
+            ['pinterest.', 'fab fa-pinterest'],
+            ['tumblr.', 'fab fa-tumblr'],
+            ['tiktok.', 'fab fa-tiktok'],
+            ['snapchat.', 'fab fa-snapchat'],
+            ['threads.', 'fab fa-threads'],
+            ['mastodon.', 'fab fa-mastodon'],
+            ['discord.', 'fab fa-discord'],
+            ['slack.', 'fab fa-slack'],
+            ['telegram.', 'fab fa-telegram'],
+            ['t.me', 'fab fa-telegram'],
+            ['whatsapp.', 'fab fa-whatsapp'],
+            ['wa.me', 'fab fa-whatsapp'],
+            ['signal.', 'fas fa-comment'],
+            ['skype.', 'fab fa-skype'],
+            ['zoom.', 'fas fa-video'],
+            ['teams.microsoft', 'fas fa-users'],
+            ['meet.google', 'fas fa-video'],
+            ['google.', 'fab fa-google'],
+            ['gmail.', 'fas fa-envelope'],
+            ['mail.google', 'fas fa-envelope'],
+            ['outlook.', 'fas fa-envelope'],
+            ['drive.google', 'fab fa-google-drive'],
+            ['docs.google', 'fas fa-file-lines'],
+            ['photos.google', 'fas fa-images'],
+            ['maps.google', 'fas fa-map-location-dot'],
+            ['calendar.google', 'fas fa-calendar-days'],
+            ['translate.google', 'fas fa-language'],
+            ['duckduckgo.', 'fas fa-magnifying-glass'],
+            ['bing.', 'fas fa-magnifying-glass'],
+            ['kagi.', 'fas fa-magnifying-glass'],
+            ['perplexity.', 'fas fa-brain'],
+            ['chatgpt.', 'fas fa-robot'],
+            ['openai.', 'fas fa-robot'],
+            ['anthropic.', 'fas fa-robot'],
+            ['claude.', 'fas fa-robot'],
+            ['gemini.google', 'fas fa-gem'],
+            ['copilot.', 'fas fa-wand-magic-sparkles'],
+            ['huggingface.', 'fas fa-face-smile'],
+            ['amazon.', 'fab fa-amazon'],
+            ['aws.amazon', 'fab fa-aws'],
+            ['ebay.', 'fab fa-ebay'],
+            ['etsy.', 'fab fa-etsy'],
+            ['shopify.', 'fab fa-shopify'],
+            ['paypal.', 'fab fa-paypal'],
+            ['stripe.', 'fab fa-stripe'],
+            ['apple.', 'fab fa-apple'],
+            ['microsoft.', 'fab fa-microsoft'],
+            ['windows.', 'fab fa-windows'],
+            ['xbox.', 'fab fa-xbox'],
+            ['playstation.', 'fab fa-playstation'],
+            ['steam', 'fab fa-steam'],
+            ['twitch.', 'fab fa-twitch'],
+            ['spotify.', 'fab fa-spotify'],
+            ['soundcloud.', 'fab fa-soundcloud'],
+            ['music.apple', 'fas fa-music'],
+            ['music.youtube', 'fab fa-youtube'],
+            ['netflix.', 'fas fa-film'],
+            ['primevideo', 'fas fa-film'],
+            ['hulu.', 'fas fa-film'],
+            ['disneyplus', 'fas fa-film'],
+            ['hbomax', 'fas fa-film'],
+            ['hotstar', 'fas fa-film'],
+            ['imdb.', 'fab fa-imdb'],
+            ['notion.', 'fas fa-book'],
+            ['obsidian.', 'fas fa-book'],
+            ['evernote.', 'fas fa-elephant'],
+            ['todoist.', 'fas fa-list-check'],
+            ['trello.', 'fab fa-trello'],
+            ['asana.', 'fas fa-list-check'],
+            ['jira.', 'fab fa-jira'],
+            ['confluence.', 'fab fa-confluence'],
+            ['linear.', 'fas fa-diagram-project'],
+            ['figma.', 'fab fa-figma'],
+            ['canva.', 'fas fa-paintbrush'],
+            ['dribbble.', 'fab fa-dribbble'],
+            ['behance.', 'fab fa-behance'],
+            ['unsplash.', 'fab fa-unsplash'],
+            ['vercel.', 'fas fa-triangle-exclamation'],
+            ['netlify.', 'fas fa-cloud'],
+            ['cloudflare.', 'fab fa-cloudflare'],
+            ['digitalocean.', 'fab fa-digital-ocean'],
+            ['heroku.', 'fas fa-cloud'],
+            ['npmjs.', 'fab fa-npm'],
+            ['yarnpkg.', 'fab fa-yarn'],
+            ['docker.', 'fab fa-docker'],
+            ['kubernetes.', 'fas fa-dharmachakra'],
+            ['nodejs.', 'fab fa-node-js'],
+            ['python.', 'fab fa-python'],
+            ['php.', 'fab fa-php'],
+            ['java.', 'fab fa-java'],
+            ['golang.', 'fab fa-golang'],
+            ['rust-lang.', 'fab fa-rust'],
+            ['developer.mozilla', 'fab fa-firefox-browser'],
+            ['mozilla.', 'fab fa-firefox-browser'],
+            ['chromium.', 'fab fa-chrome'],
+            ['vimeo.', 'fab fa-vimeo'],
+            ['flickr.', 'fab fa-flickr'],
+            ['medium.', 'fab fa-medium'],
+            ['dev.to', 'fab fa-dev'],
+            ['hashnode.', 'fab fa-hashnode'],
+            ['substack.', 'fas fa-newspaper'],
+            ['bbc.', 'fas fa-newspaper'],
+            ['cnn.', 'fas fa-newspaper'],
+            ['nytimes.', 'fas fa-newspaper'],
+            ['theguardian.', 'fas fa-newspaper'],
+            ['washingtonpost.', 'fas fa-newspaper'],
+            ['wikipedia.', 'fab fa-wikipedia-w'],
+            ['wikimedia.', 'fab fa-wikipedia-w'],
+            ['archive.org', 'fas fa-box-archive'],
+            ['protonmail.', 'fas fa-envelope-circle-check'],
+            ['proton.me', 'fas fa-envelope-circle-check'],
+            ['1password.', 'fas fa-key'],
+            ['bitwarden.', 'fas fa-shield-halved'],
+            ['lastpass.', 'fas fa-key'],
+            ['mega.nz', 'fas fa-cloud'],
+            ['dropbox.', 'fab fa-dropbox'],
+            ['onedrive.', 'fas fa-cloud'],
+            ['icloud.', 'fab fa-apple']
+        ];
+
+        for (const [needle, icon] of map) {
+            if (host.includes(needle)) return icon;
+        }
+
+        // Fallbacks based on TLD or common keywords
+        if (/(^|\.)mail\./.test(host) || /webmail/.test(host)) return 'fas fa-envelope';
+        if (/(^|\.)chat\./.test(host)) return 'fas fa-comments';
+        if (/(^|\.)docs?\./.test(host)) return 'fas fa-file-lines';
+        if (/(^|\.)wiki\./.test(host)) return 'fas fa-book-open';
+        if (/(^|\.)blog\./.test(host)) return 'fas fa-blog';
+        if (/(^|\.)shop\./.test(host) || /(^|\.)store\./.test(host)) return 'fas fa-bag-shopping';
+        if (/(^|\.)news\./.test(host)) return 'fas fa-newspaper';
+        if (/(^|\.)video\./.test(host) || /(^|\.)tv\./.test(host)) return 'fas fa-tv';
+        if (/\.gov($|\.)/.test(host)) return 'fas fa-landmark';
+        if (/\.edu($|\.)/.test(host)) return 'fas fa-graduation-cap';
+
+        return 'fas fa-globe';
+    }
+
     // -------- Widget visibility (show/hide widgets from Customize menu) --------
     loadWidgetVisibility() {
         const defaults = { weather: true, reminders: true, quicklinks: true, clocks: false, calendar: false, notes: false };
@@ -4277,8 +4472,10 @@ class NewTabHomepage {
 
             linkCard.href = validUrl;
             nameEl.textContent = newName;
-            // Set icon class, ensuring link-icon is preserved
-            const cleanIcon = newIcon.split(' ').filter(c => c !== 'link-icon').join(' ').trim() || 'fas fa-link';
+            // Set icon class, ensuring link-icon is preserved.
+            // If user left icon blank, auto-pick one from the URL.
+            const fallbackIcon = this.guessIconForUrl(validUrl);
+            const cleanIcon = newIcon.split(' ').filter(c => c !== 'link-icon').join(' ').trim() || fallbackIcon;
             iconEl.className = cleanIcon + ' link-icon';
 
             // Update the manager item in real-time (before refreshing)
@@ -4290,7 +4487,7 @@ class NewTabHomepage {
                 
                 if (managerName) managerName.textContent = newName;
                 if (managerUrl) managerUrl.textContent = validUrl;
-                if (managerIcon) managerIcon.className = newIcon || 'fas fa-link';
+                if (managerIcon) managerIcon.className = cleanIcon;
             }
 
             // Save changes
@@ -5700,6 +5897,44 @@ class NewTabHomepage {
     }
 
     /**
+     * Built-in quick-pick presets shown in the Add Link modal.
+     * Tweak/extend as needed. Each item: { name, url, icon, newTab? }
+     */
+    getLinkPresets() {
+        return [
+            { name: 'Gmail',                url: 'https://mail.google.com',          icon: 'fas fa-envelope' },
+            { name: 'Outlook',              url: 'https://outlook.live.com/mail/',   icon: 'fas fa-envelope' },
+            { name: 'Google Calendar',      url: 'https://calendar.google.com',      icon: 'fas fa-calendar-days' },
+            { name: 'Google Drive',         url: 'https://drive.google.com',         icon: 'fab fa-google-drive' },
+            { name: 'Google Docs',          url: 'https://docs.google.com',          icon: 'fas fa-file-lines' },
+            { name: 'Google Photos',        url: 'https://photos.google.com',        icon: 'fas fa-images' },
+            { name: 'Google Maps',          url: 'https://maps.google.com',          icon: 'fas fa-map-location-dot' },
+            { name: 'YouTube',              url: 'https://youtube.com',              icon: 'fab fa-youtube' },
+            { name: 'WhatsApp Web',         url: 'https://web.whatsapp.com',         icon: 'fab fa-whatsapp' },
+            { name: 'Telegram',             url: 'https://web.telegram.org',         icon: 'fab fa-telegram' },
+            { name: 'Discord',              url: 'https://discord.com/app',          icon: 'fab fa-discord' },
+            { name: 'Slack',                url: 'https://app.slack.com',            icon: 'fab fa-slack' },
+            { name: 'Teams',                url: 'https://teams.microsoft.com',      icon: 'fas fa-users' },
+            { name: 'GitHub',               url: 'https://github.com',               icon: 'fab fa-github' },
+            { name: 'GitLab',               url: 'https://gitlab.com',               icon: 'fab fa-gitlab' },
+            { name: 'Stack Overflow',       url: 'https://stackoverflow.com',        icon: 'fab fa-stack-overflow' },
+            { name: 'Trello',               url: 'https://trello.com',               icon: 'fab fa-trello' },
+            { name: 'Todoist',              url: 'https://todoist.com/app',          icon: 'fas fa-list-check' },
+            { name: 'Figma',                url: 'https://www.figma.com',            icon: 'fab fa-figma' },
+            { name: 'LinkedIn',             url: 'https://www.linkedin.com',         icon: 'fab fa-linkedin' },
+            { name: 'Reddit',               url: 'https://www.reddit.com',           icon: 'fab fa-reddit' },
+            { name: 'Instagram',            url: 'https://www.instagram.com',        icon: 'fab fa-instagram' },
+            { name: 'Facebook',             url: 'https://www.facebook.com',         icon: 'fab fa-facebook' },
+            { name: 'Spotify',              url: 'https://open.spotify.com',         icon: 'fab fa-spotify' },
+            { name: 'Netflix',              url: 'https://www.netflix.com',          icon: 'fas fa-film' },
+            { name: 'Wikipedia',            url: 'https://www.wikipedia.org',        icon: 'fab fa-wikipedia-w' },
+            { name: 'DuckDuckGo',           url: 'https://duckduckgo.com',           icon: 'fas fa-magnifying-glass' },
+            { name: 'Proton Mail',          url: 'https://mail.proton.me',           icon: 'fas fa-envelope-circle-check' },
+            { name: 'Proton Calendar',      url: 'https://calendar.proton.me',       icon: 'fas fa-calendar-check' },
+        ];
+    }
+
+    /**
      * Open the generic link modal (#linkModal). Returns nothing; calls onSave with the form values.
      * @param {{mode?: 'add'|'edit', name?: string, url?: string, icon?: string, newTab?: boolean, onSave: Function}} opts
      */
@@ -5714,12 +5949,38 @@ class NewTabHomepage {
         const saveBtn = document.getElementById('linkModalSave');
         const cancelBtn = document.getElementById('linkModalCancel');
         const closeBtn = document.getElementById('closeLinkModal');
+        const presetsGroup = document.getElementById('linkModalPresetsGroup');
+        const presetsSelect = document.getElementById('linkModalPresetsSelect');
 
         title.textContent = opts.mode === 'edit' ? 'Edit link' : 'Add link';
         nameInput.value = opts.name || '';
         urlInput.value = opts.url || '';
         iconInput.value = opts.icon || '';
         if (newTabInput) newTabInput.checked = !!opts.newTab;
+
+        // Render preset dropdown only in add mode
+        if (presetsGroup && presetsSelect) {
+            const isEdit = opts.mode === 'edit';
+            presetsGroup.style.display = isEdit ? 'none' : '';
+            if (!isEdit) {
+                const presets = this.getLinkPresets();
+                presetsSelect.innerHTML =
+                    `<option value="">— Quick add —</option>` +
+                    presets.map((p, i) => `<option value="${i}">${this.escapeHtml(p.name)}</option>`).join('');
+                presetsSelect.value = '';
+                presetsSelect.onchange = () => {
+                    const idx = Number(presetsSelect.value);
+                    if (Number.isNaN(idx)) return;
+                    const p = presets[idx];
+                    if (!p) return;
+                    nameInput.value = p.name;
+                    urlInput.value = p.url;
+                    iconInput.value = p.icon;
+                    if (newTabInput) newTabInput.checked = p.newTab !== false;
+                    nameInput.focus();
+                };
+            }
+        }
 
         modal.classList.add('open');
         modal.setAttribute('aria-hidden', 'false');
